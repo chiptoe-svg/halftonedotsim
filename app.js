@@ -270,29 +270,10 @@ function getPaperRelativeRgb(rgb) {
   );
 }
 
-function getSingleToneColor() {
-  const amount = applyGracolTvi(singleCoverage / 100, "k");
-  const red = blendChannel(255, 16, amount);
-  const green = blendChannel(250, 16, amount);
-  const blue = blendChannel(240, 16, amount);
-
-  return `rgb(${red}, ${green}, ${blue})`;
-}
-
-function getScreenCoverages() {
-  return inkScreens.map((screen) => Number(screen.slider.value) / 100);
-}
-
-function getGracolReferenceCoverages() {
-  return inkScreens.map((screen, index) => {
-    const raw = Number(screen.slider.value) / 100;
-
-    return applyGracolTvi(raw, gracolChannelOrder[index]);
-  });
-}
-
-function getProfiledCmykToneColor() {
-  const coverages = getGracolReferenceCoverages();
+// Linear-light Neugebauer mix over the GRACoL 16 primaries. Used by both the
+// CMYK and single-K reference tone so the two modes produce visually
+// consistent right-side colors at the same effective coverage.
+function neugebauerToneColor(coverages) {
   const linearRgb = [0, 0, 0];
 
   gracolNeugebauerRgb.forEach((rgb, mask) => {
@@ -311,9 +292,48 @@ function getProfiledCmykToneColor() {
   )}, ${toSrgbValue(linearRgb[2])})`;
 }
 
+function getSingleToneColor() {
+  return neugebauerToneColor([0, 0, 0, applyGracolTvi(singleCoverage / 100, "k")]);
+}
+
+function getScreenCoverages() {
+  return inkScreens.map((screen) => Number(screen.slider.value) / 100);
+}
+
+function getGracolReferenceCoverages() {
+  return inkScreens.map((screen, index) => {
+    const raw = Number(screen.slider.value) / 100;
+
+    return applyGracolTvi(raw, gracolChannelOrder[index]);
+  });
+}
+
+function getProfiledCmykToneColor() {
+  return neugebauerToneColor(getGracolReferenceCoverages());
+}
+
 function drawDivider(splitX, height) {
   ctx.fillStyle = "rgba(16, 16, 16, 0.18)";
   ctx.fillRect(splitX - 0.5, 0, 1, height);
+}
+
+// At very high LPI the geometric dot rendering can't physically dissolve into
+// solid tone (pixel floor stops cells shrinking past 2 px). We crossfade the
+// halftone half toward the predicted reference color as cells go below 4 px,
+// so the slider's top end actually reaches "indistinguishable from the right
+// side" as the spec requires.
+function drawHighLpiSmoothing(toneColor, splitX, height, cell) {
+  if (cell >= 4) {
+    return;
+  }
+
+  const alpha = Math.max(0, Math.min(1, (4 - cell) / 1));
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = toneColor;
+  ctx.fillRect(0, 0, splitX, height);
+  ctx.restore();
 }
 
 // Render one ink screen to its own offscreen canvas using normal compositing,
@@ -408,6 +428,7 @@ function drawSingleView(width, height, cell, splitX) {
     height,
     cell,
   );
+  drawHighLpiSmoothing(getSingleToneColor(), splitX, height, cell);
   drawDivider(splitX, height);
 }
 
@@ -424,6 +445,7 @@ function drawCmykView(width, height, cell, splitX) {
     );
   });
 
+  drawHighLpiSmoothing(getProfiledCmykToneColor(), splitX, height, cell);
   drawDivider(splitX, height);
 }
 
