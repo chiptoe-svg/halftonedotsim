@@ -14,6 +14,8 @@ const minDotPrintedInput = document.querySelector("#minDotPrintedInput");
 const dotGainApplyButton = document.querySelector("#dotGainApplyButton");
 const dotGainTrigger = document.querySelector("#dotGainTrigger");
 const dotGainPopover = document.querySelector("#dotGainPopover");
+const lpiSlider = document.querySelector("#lpiSlider");
+const lpiValue = document.querySelector("#lpiValue");
 const paperRgb = [255, 250, 240];
 // GRACoL2013 CRPC6 CMYK-to-sRGB samples for paper, primaries, and overprints.
 const gracolNeugebauerRgb = [
@@ -126,6 +128,14 @@ function syncCmykControls() {
     screen.slider.style.setProperty("--track-fill", `${amount}%`);
     screen.output.textContent = `${amount}%`;
   });
+}
+
+function syncLpiValue() {
+  const lpi = Number(lpiSlider.value);
+  const fillPercent = ((lpi - 25) / (200 - 25)) * 100;
+
+  lpiSlider.style.setProperty("--track-fill", `${fillPercent}%`);
+  lpiValue.textContent = String(lpi);
 }
 
 function setMode(nextMode) {
@@ -420,8 +430,8 @@ function drawVisualizer() {
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.width / ratio;
   const height = canvas.height / ratio;
-  const shorterSide = Math.min(width, height);
-  const cell = Math.max(15, Math.min(30, shorterSide / 18));
+  const lpi = Number(lpiSlider.value);
+  const cell = Math.max(4, 750 / lpi);
   const splitX = width / 2;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -521,9 +531,15 @@ dotGainTrigger.addEventListener("click", () => {
   }
 });
 
+lpiSlider.addEventListener("input", () => {
+  syncLpiValue();
+  drawVisualizer();
+});
+
 window.addEventListener("resize", resizeCanvas);
 
 syncSingleControl();
 syncCmykControls();
+syncLpiValue();
 setMode("single");
 resizeCanvas();
