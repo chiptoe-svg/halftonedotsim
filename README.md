@@ -9,6 +9,8 @@ Two modes:
 
 A **Dot Gain** disclosure in the control strip exposes three press-physics knobs (Dot Gain, Min Dot, Min Dot Printed). The left side reflects what files actually print like on your press; the right side stays a constant GRACoL coated soft-proof reference matching what designers see in Adobe.
 
+An **LPI** slider centered below the halftone half lets you sweep through screen frequencies from coarse (25 LPI, dots clearly visible) to fine (200 LPI, dots dissolve into solid tone at viewing distance), passing through the recognizable CMYK rosette pattern in the middle of the range.
+
 ## Live demo
 
 <https://chiptoe-svg.github.io/halftonedotsim/>
@@ -32,6 +34,7 @@ A few things worth pointing out if you read the source:
 - **CMYK color blending.** The solid-tone side uses the **Neugebauer equations** over a 16-point Neugebauer primary set sampled from the **GRACoL2013 CRPC6** characterization (paper, four primaries, six two-color overprints, four three-color overprints, and 4-color black). Each primary is weighted by the product of coverage / (1 − coverage) per channel, scaled against the simulated paper white, blended in linear light, then converted back to sRGB.
 - **Rendering, with accurate high-coverage dots.** Each ink screen renders to its own offscreen canvas using normal source-over compositing — overlapping dots of the _same_ ink merge flat into one ink film rather than darkening each other. The four offscreen layers are then composited onto the main canvas with `globalCompositeOperation = "multiply"`, so overprinted _different_ inks (cyan over magenta, etc.) still darken realistically. This separation matters most above ~70% single-channel coverage, where adjacent dots heavily overlap: a naïve single-pass multiply renderer would produce a visible darker lattice between same-ink dots that doesn't correspond to anything in real printing.
 - **Press-physics gain model.** The Dot Gain disclosure runs each channel's slider value through a hard min-dot floor and a two-component additive gain (`bell`-shape midtone spread + `decay`-shape small-end bloom) anchored by the three user inputs. The right-side reference independently applies hardcoded G7/GRACoL coated TVI per channel (C+12, M+14, Y+13, K+18 at 50%) before the Neugebauer mix, so it always represents the Adobe soft-proof equivalent.
+- **Screen frequency (LPI).** The LPI slider drives the cell pitch of all four ink screens via `cell = max(2, 600 / lpi)`. Higher LPI means smaller cells which means smaller dots. The classic CMYK rosette emerges automatically at mid LPI because the four screen angles (C 15°, M 75°, Y 0°, K 45°) interfere visibly once dots are small enough. At the high end of the slider, dots are small enough that the eye blends them into solid tone at typical screen viewing distance.
 
 ## File layout
 
