@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dot Gain &amp; Min Dot — Design Spec</title>
+    <style>
+      :root {
+        --paper: #f6f1e8;
+        --paper-deep: #e7ddce;
+        --ink: #101010;
+        --panel: #fffaf0;
+        --line: #cabda8;
+        --muted: #51493d;
+        --accent: #db3b2a;
+        --accent-deep: #9f2d24;
+        --blue: #1f6f8b;
+        --cyan: #00a2e3;
+        --magenta: #e6007d;
+        --yellow: #ffed00;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: clamp(24px, 5vw, 64px) clamp(20px, 6vw, 96px);
+        background:
+          linear-gradient(120deg, rgba(31, 111, 139, 0.10), transparent 34%),
+          linear-gradient(300deg, rgba(219, 59, 42, 0.08), transparent 38%),
+          var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      .doc {
+        max-width: 980px;
+        margin: 0 auto;
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 28px;
+        margin-bottom: 36px;
+      }
+
+      .eyebrow {
+        margin: 0 0 6px;
+        color: var(--blue);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 4vw, 3rem);
+        letter-spacing: -0.01em;
+        line-height: 1.05;
+      }
+
+      .lede {
+        margin: 0;
+        max-width: 70ch;
+        font-size: 1.05rem;
+        color: var(--muted);
+      }
+
+      h2 {
+        margin: 48px 0 14px;
+        font-size: 1.5rem;
+        letter-spacing: -0.005em;
+      }
+
+      h3 {
+        margin: 28px 0 10px;
+        font-size: 1.1rem;
+        color: var(--muted);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      p, ul, ol {
+        max-width: 76ch;
+      }
+
+      code {
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.92em;
+        background: rgba(31, 111, 139, 0.10);
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
+
+      pre {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px 18px;
+        overflow-x: auto;
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        font-size: inherit;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 18px 0;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        font-size: 0.95rem;
+      }
+
+      thead th {
+        background: rgba(31, 111, 139, 0.08);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .swatch {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        margin-right: 8px;
+        vertical-align: -2px;
+        border-radius: 50%;
+        border: 1px solid rgba(16, 16, 16, 0.18);
+      }
+      .swatch-c { background: var(--cyan); }
+      .swatch-m { background: var(--magenta); }
+      .swatch-y { background: var(--yellow); }
+      .swatch-k { background: var(--ink); }
+
+      /* ============ Control-strip mockup ============ */
+
+      .mockup-frame {
+        margin: 22px 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        box-shadow: 0 18px 50px rgba(38, 31, 20, 0.10);
+        overflow: hidden;
+      }
+
+      .mockup-caption {
+        padding: 10px 18px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--blue);
+        background: rgba(231, 221, 206, 0.50);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .mockup-strip {
+        display: grid;
+        grid-template-columns: minmax(170px, 0.72fr) minmax(380px, 2fr);
+        align-items: start;
+        gap: clamp(18px, 3vw, 36px);
+        padding: 22px clamp(18px, 3vw, 36px);
+      }
+
+      .mockup-title-group .mock-eyebrow {
+        margin: 0 0 4px;
+        color: var(--blue);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .mockup-title-group .mock-h1 {
+        margin: 0;
+        font-size: 1.6rem;
+        line-height: 1;
+      }
+
+      .mockup-toggle {
+        display: inline-flex;
+        gap: 2px;
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(231, 221, 206, 0.65);
+        padding: 3px;
+      }
+      .mockup-toggle .mb {
+        min-width: 50px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        padding: 7px 12px;
+        cursor: default;
+      }
+      .mockup-toggle .mb.is-active {
+        background: var(--ink);
+        color: var(--panel);
+        box-shadow: 0 4px 12px rgba(16, 16, 16, 0.16);
+      }
+
+      .mockup-channels {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px 18px;
+      }
+
+      .mockup-channel {
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        row-gap: 6px;
+      }
+      .mockup-channel output {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0;
+        font-weight: 600;
+      }
+      .mockup-channel .track {
+        grid-column: 1 / -1;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--paper-deep);
+        position: relative;
+        border: 1px solid rgba(16, 16, 16, 0.18);
+      }
+      .mockup-channel .fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        border-radius: 999px;
+      }
+      .mockup-channel .thumb {
+        position: absolute;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        margin-top: -9px;
+        border-radius: 50%;
+        border: 2px solid var(--panel);
+        box-shadow: 0 2px 6px rgba(16, 16, 16, 0.28);
+        transform: translateX(-50%);
+      }
+      .mockup-channel.c .fill, .mockup-channel.c .thumb { background: var(--cyan); }
+      .mockup-channel.m .fill, .mockup-channel.m .thumb { background: var(--magenta); }
+      .mockup-channel.y .fill, .mockup-channel.y .thumb { background: var(--yellow); }
+      .mockup-channel.k .fill, .mockup-channel.k .thumb { background: var(--ink); }
+
+      /* The Dot Gain disclosure */
+      .dotgain-disclosure {
+        margin-top: 18px;
+        border-top: 1px dashed var(--line);
+        padding-top: 14px;
+      }
+
+      .dotgain-disclosure summary {
+        cursor: pointer;
+        list-style: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        user-select: none;
+      }
+      .dotgain-disclosure summary::-webkit-details-marker { display: none; }
+      .dotgain-disclosure summary::before {
+        content: "▸";
+        display: inline-block;
+        font-size: 0.7rem;
+        color: var(--accent);
+        transition: transform 120ms ease;
+      }
+      .dotgain-disclosure[open] summary::before {
+        transform: rotate(90deg);
+      }
+      .dotgain-disclosure summary:hover {
+        color: var(--ink);
+      }
+
+      .dotgain-inputs {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px clamp(12px, 2vw, 22px);
+      }
+
+      .dotgain-input {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+      .dotgain-input label {
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .dotgain-input .input-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel);
+        padding: 6px 10px;
+      }
+      .dotgain-input input[type="number"] {
+        flex: 1;
+        border: 0;
+        background: transparent;
+        font: inherit;
+        font-size: 1rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink);
+        width: 100%;
+        outline: none;
+        -moz-appearance: textfield;
+      }
+      .dotgain-input input::-webkit-outer-spin-button,
+      .dotgain-input input::-webkit-inner-spin-button {
+        opacity: 0.4;
+      }
+      .dotgain-input .suffix {
+        color: var(--muted);
+        font-weight: 700;
+        font-size: 0.86rem;
+      }
+
+      .dotgain-note {
+        margin-top: 12px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      /* ============ Pipeline diagram ============ */
+
+      .pipelines {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin: 18px 0 0;
+      }
+      .pipeline {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 16px 18px;
+        background: var(--panel);
+      }
+      .pipeline h4 {
+        margin: 0 0 6px;
+        font-size: 0.82rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .pipeline-sub {
+        margin: 0 0 12px;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+      .pipeline ol {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 0.92rem;
+      }
+      .pipeline ol li {
+        margin-bottom: 4px;
+      }
+      .pipeline code {
+        font-size: 0.85em;
+      }
+
+      @media (max-width: 720px) {
+        .pipelines { grid-template-columns: 1fr; }
+        .mockup-strip {
+          grid-template-columns: 1fr;
+        }
+        .mockup-channels {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .dotgain-inputs {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .callout {
+        margin: 18px 0;
+        padding: 14px 18px;
+        border-left: 4px solid var(--accent);
+        background: rgba(219, 59, 42, 0.06);
+        border-radius: 0 8px 8px 0;
+      }
+      .callout strong {
+        color: var(--accent-deep);
+      }
+
+      footer {
+        margin-top: 64px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <article class="doc">
+      <header>
+        <p class="eyebrow">Design spec · 2026-05-12</p>
+        <h1>Dot Gain &amp; Min Dot</h1>
+        <p class="lede">
+          Add a press-physics model to the visualizer so the halftone view
+          reflects what files actually print like on a real press, while the
+          solid-tone reference continues to show what the designer sees in
+          Adobe soft-proof against GRACoL coated. Side-by-side comparison
+          becomes a teaching tool: <em>"this is what you designed against
+          versus what you'll get on press."</em>
+        </p>
+      </header>
+
+      <section>
+        <h2>Why now</h2>
+        <p>
+          The current solid-tone prediction uses pure Murray–Davies / Neugebauer
+          math with raw slider coverage values — no TVI, no Yule–Nielsen, no
+          dot gain at all. That models a hypothetical "ideal press with zero
+          dot gain on GRACoL coated paper," which doesn't exist in production.
+          Designers comparing the right side to what they see in Photoshop's
+          soft-proof (which embeds ~18% midtone gain via the GRACoL ICC) see
+          the visualizer as too clean and too light. This change fixes that
+          inaccuracy <em>and</em> adds press-physics knobs in the same pass.
+        </p>
+      </section>
+
+      <section>
+        <h2>User-facing controls</h2>
+        <p>
+          Three new inputs live behind a disclosure widget labelled "Dot Gain"
+          in the control strip, closed by default so the visualizer's
+          first-load appearance stays clean. Inputs are number-entry boxes
+          (not sliders) — these values are typed, not dialed.
+        </p>
+
+        <div class="mockup-frame">
+          <div class="mockup-caption">Mockup — control strip in CMYK mode with Dot Gain expanded</div>
+          <div class="mockup-strip">
+            <div class="mockup-title-group">
+              <p class="mock-eyebrow">Printed halftone</p>
+              <p class="mock-h1">CMYK screens</p>
+              <div class="mockup-toggle">
+                <button class="mb" type="button">K</button>
+                <button class="mb is-active" type="button">CMYK</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="mockup-channels">
+                <div class="mockup-channel c">
+                  <span><span class="swatch swatch-c"></span>C</span>
+                  <output>50%</output>
+                  <div class="track">
+                    <div class="fill" style="right: 50%"></div>
+                    <div class="thumb" style="left: 50%"></div>
+                  </div>
+                </div>
+                <div class="mockup-channel m">
+                  <span><span class="swatch swatch-m"></span>M</span>
+                  <output>50%</output>
+                  <div class="track">
+                    <div class="fill" style="right: 50%"></div>
+                    <div class="thumb" style="left: 50%"></div>
+                  </div>
+                </div>
+                <div class="mockup-channel y">
+                  <span><span class="swatch swatch-y"></span>Y</span>
+                  <output>50%</output>
+                  <div class="track">
+                    <div class="fill" style="right: 50%"></div>
+                    <div class="thumb" style="left: 50%"></div>
+                  </div>
+                </div>
+                <div class="mockup-channel k">
+                  <span><span class="swatch swatch-k"></span>K</span>
+                  <output>50%</output>
+                  <div class="track">
+                    <div class="fill" style="right: 50%"></div>
+                    <div class="thumb" style="left: 50%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <details class="dotgain-disclosure" open>
+                <summary>Dot Gain</summary>
+                <div class="dotgain-inputs">
+                  <div class="dotgain-input">
+                    <label for="mockDotGain">Dot Gain</label>
+                    <div class="input-row">
+                      <input id="mockDotGain" type="number" min="0" max="40" step="1" value="18" />
+                      <span class="suffix">%</span>
+                    </div>
+                  </div>
+                  <div class="dotgain-input">
+                    <label for="mockMinDot">Min Dot</label>
+                    <div class="input-row">
+                      <input id="mockMinDot" type="number" min="0" max="15" step="0.5" value="3" />
+                      <span class="suffix">%</span>
+                    </div>
+                  </div>
+                  <div class="dotgain-input">
+                    <label for="mockMinDotPrinted">Min Dot Printed</label>
+                    <div class="input-row">
+                      <input id="mockMinDotPrinted" type="number" min="0" max="25" step="0.5" value="5" />
+                      <span class="suffix">%</span>
+                    </div>
+                  </div>
+                </div>
+                <p class="dotgain-note">
+                  Affects the halftone view (left) only. The solid-tone reference (right) always shows GRACoL coated soft-proof equivalent.
+                </p>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <h3>Input semantics</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 16ch">Input</th>
+              <th style="width: 10ch">Range</th>
+              <th style="width: 8ch">Default</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Dot Gain</strong></td>
+              <td>0–40%</td>
+              <td>18%</td>
+              <td>Extra coverage at midtone. <code>50%</code> file plus <code>18%</code> gain prints at <code>68%</code>. Drives a bell-shaped TVI peaking at 50%.</td>
+            </tr>
+            <tr>
+              <td><strong>Min Dot</strong></td>
+              <td>0–15%</td>
+              <td>3%</td>
+              <td>Physical plate floor: file values strictly less than this drop to 0%. Hard step — reflects "anything smaller than this is physically impossible to image on the plate."</td>
+            </tr>
+            <tr>
+              <td><strong>Min Dot Printed</strong></td>
+              <td>0–25%</td>
+              <td>5%</td>
+              <td>What a file value at <em>Min Dot</em> deposits on paper after ink-physics blooms it. Anchors the small-end of the gain curve. Coated press: ~5–8. Flexo: ~15–20.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>The two-side pedagogical contract</h2>
+
+        <div class="callout">
+          <strong>Right side = constant Adobe-soft-proof equivalent (GRACoL coated reference).</strong>
+          <br>
+          <strong>Left side = user-configurable simulation of their actual press.</strong>
+          <br>
+          At default values both halves roughly agree. As the user dials toward flexo or newsprint, the left diverges from the right — and the visualizer literally shows "this is what you designed against vs. what you'll get on press."
+        </div>
+
+        <div class="pipelines">
+          <div class="pipeline">
+            <h4>Left — halftone (user's press)</h4>
+            <p class="pipeline-sub">Reflects the three user inputs.</p>
+            <ol>
+              <li>Slider value <code>c</code> per channel</li>
+              <li>Hard floor: if <code>c &lt; minDot</code> → <code>0</code></li>
+              <li>Compute press effective coverage via two-component gain model (see below)</li>
+              <li>Derive dot radius from intended + cell-pitch spread</li>
+              <li>Render dot screen to offscreen canvas; composite onto main canvas with <code>multiply</code></li>
+            </ol>
+          </div>
+
+          <div class="pipeline">
+            <h4>Right — solid tone (GRACoL coated reference)</h4>
+            <p class="pipeline-sub">Independent of all three new inputs.</p>
+            <ol>
+              <li>Slider value <code>c</code> per channel</li>
+              <li>Apply hardcoded GRACoL coated TVI per channel (fixed table)</li>
+              <li>Compute Neugebauer 16-primary mix using effective coverages</li>
+              <li>Blend in linear light, convert to sRGB</li>
+              <li>Fill solid color into right half</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Press-side gain model (left)</h2>
+
+        <p>
+          Two components, both anchored by the user knobs and shaped by simple
+          geometric functions. No fitted curves, no magic numbers beyond the
+          three user inputs.
+        </p>
+
+<pre><code>effective(c) = c + bloomTerm(c) + spreadTerm(c)
+
+  bloomTerm(c)  = (minDotPrinted − minDot) · decay(c)        // small-end bloom
+  spreadTerm(c) = dotGain · bell(c)                          // midtone gain
+
+  bell(c)       = 4 · c · (1 − c)                            // peaks 1 at c = 0.5
+  decay(c)      = max(0, 1 − (c − minDot)/(0.5 − minDot))    // 1 at c=minDot, 0 by c=0.5</code></pre>
+
+        <p>
+          The two terms add. The bloom term captures
+          <em>"the smallest plate dot deposits a fixed extra blob of ink
+          relative to its area"</em> — flexo's runaway small-end gain. The
+          spread term captures perimeter-driven ink creep that peaks at
+          midtones. Together they produce TVI curves that match real press
+          behaviour from coated offset (low bloom, moderate spread) through
+          newsprint and flexo (high bloom, high spread).
+        </p>
+
+        <h3>Anchor point check</h3>
+        <ul>
+          <li>At <code>c = minDot</code>: <code>bloomTerm = (minDotPrinted − minDot) · 1 = minDotPrinted − minDot</code>; spreadTerm ≈ 0. So <code>effective ≈ minDotPrinted</code>. ✔</li>
+          <li>At <code>c = 0.5</code>: <code>bloomTerm = 0</code>; <code>spreadTerm = dotGain</code>. So <code>effective = 0.5 + dotGain</code>. ✔</li>
+          <li>At <code>c = 1.0</code>: <code>bloomTerm = 0</code>; <code>spreadTerm = 0</code>. So <code>effective = 1.0</code>. ✔ (no gain at solid)</li>
+        </ul>
+
+        <h3>From effective coverage to dot radius</h3>
+        <p>
+          The renderer already has <code>getDotRadius(cell, amount)</code>
+          which produces visually pleasing dots with the existing
+          smoothstep-merge near 100%. We layer the gain on top by adding a
+          spread distance in cell-pitch units:
+        </p>
+<pre><code>spreadCellFraction = (effective(intended) − intended) / midtoneCalibration
+dotRadius = existingRadius(cell, intended · 100) + spreadCellFraction · cell</code></pre>
+
+        <p>
+          Where <code>midtoneCalibration</code> is a constant chosen so that
+          <code>dotGain = 18%</code> visually produces ~18% effective gain
+          when measured back from the rendered dot area. To be tuned during
+          implementation by visual + numerical match against the right side
+          at default values.
+        </p>
+      </section>
+
+      <section>
+        <h2>Right-side GRACoL coated reference</h2>
+
+        <p>
+          The right side stays GRACoL coated for all users at all settings.
+          To make it actually match what designers see in Photoshop soft-proof,
+          we apply the published G7/GRACoL target TVI curve per channel before
+          the existing Neugebauer mix.
+        </p>
+
+        <h3>GRACoL coated TVI anchors (50% file → printed)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 20%">Channel</th>
+              <th style="width: 30%">50% file prints as</th>
+              <th>Effective gain @ 50%</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="swatch swatch-c"></span>Cyan</td>    <td>~62%</td><td>+12%</td></tr>
+            <tr><td><span class="swatch swatch-m"></span>Magenta</td> <td>~64%</td><td>+14%</td></tr>
+            <tr><td><span class="swatch swatch-y"></span>Yellow</td>  <td>~63%</td><td>+13%</td></tr>
+            <tr><td><span class="swatch swatch-k"></span>Black</td>   <td>~68%</td><td>+18%</td></tr>
+          </tbody>
+        </table>
+
+        <p>
+          Implemented as a small per-channel TVI function (bell-curve
+          interpolation through the 50% anchor) applied to coverage values
+          before feeding them to the existing Neugebauer code. The 16-primary
+          GRACoL2013 CRPC6 Neugebauer table already in <code>app.js</code> is
+          unchanged.
+        </p>
+
+        <div class="callout">
+          <strong>Why hardcoded TVI + Neugebauer rather than an ICC LUT?</strong>
+          ICC profile lookup gives an essentially exact Adobe match but adds
+          ~200 LOC, a ~50–500 KB profile blob, and a black-box LUT-interp
+          step that hides the math. Per-channel TVI + the visible Neugebauer
+          equations gives ~95% accuracy with full pedagogical transparency.
+          Someone reading <code>app.js</code> can see exactly how the
+          right-side reference is computed. For an educational tool that's a
+          better trade.
+        </div>
+      </section>
+
+      <section>
+        <h2>Defaults &amp; first-load behaviour</h2>
+        <ul>
+          <li>Disclosure starts <strong>closed</strong> — first impression is unchanged.</li>
+          <li>Three inputs are populated with <strong>Dot Gain 18%, Min Dot 3%, Min Dot Printed 5%</strong>.</li>
+          <li>With these defaults the left and right halves visually agree at most coverages — the visualizer looks coherent on load.</li>
+          <li>The right side ALSO now reflects GRACoL coated TVI, which is a corrective change from today's "zero gain" right-side rendering. Designers comparing to Adobe will see a substantially better match.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Non-goals</h2>
+        <ul>
+          <li><strong>Per-channel CMYK gain inputs.</strong> Single global values for all three inputs. A future per-channel mode could be added with a fourth disclosure or a mode toggle.</li>
+          <li><strong>Press-type presets.</strong> No "Coated / Uncoated / Newsprint / Flexo" dropdown in this pass — users dial values directly. A preset row could be layered on later (it'd just write three numbers into the inputs).</li>
+          <li><strong>Yule–Nielsen n-factor.</strong> Neugebauer stays pure Murray–Davies; perimeter-spread is doing the gain modeling.</li>
+          <li><strong>Persistence across reloads.</strong> Defaults apply every load. No localStorage / URL state.</li>
+          <li><strong>"Right side mirrors press" toggle.</strong> Mentioned in earlier brainstorming as an optional advanced toggle. Out of scope for v1 to keep UI minimal. Easy to add later: one checkbox, one branch.</li>
+          <li><strong>ICC profile transformation.</strong> Out of scope, as discussed above.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Open questions / TBD during implementation</h2>
+        <ul>
+          <li><strong>Calibration constant</strong> — the <code>midtoneCalibration</code> factor that maps "Dot Gain 18%" in the slider to actual ~18% effective coverage in the rendered halftone. Needs visual + numerical tuning.</li>
+          <li><strong>TVI curve shape between anchors</strong> — the GRACoL right-side TVI uses one anchor per channel (50%). Real GRACoL curves have more shape (gain at 25% and 75% are not symmetric to 50%). For v1, a single-anchor bell-curve through 50% is the simplest acceptable approximation; we can extend to multi-anchor later.</li>
+          <li><strong>Input change handling</strong> — number-entry inputs should debounce or only redraw on blur/Enter, so typing "13" doesn't trigger a redraw at "1" then "13". Decide implementation: debounced <code>input</code> event or <code>change</code> event.</li>
+          <li><strong>Mobile layout</strong> — the 3-column input grid collapses to 1 column on small screens; the disclosure still works. Verify the control strip's existing breakpoints accommodate the new disclosure block.</li>
+        </ul>
+      </section>
+
+      <footer>
+        Spec for <code>halftonedotsim</code> · brainstormed 2026-05-12 ·
+        next step: implementation plan via <code>writing-plans</code> skill.
+      </footer>
+    </article>
+  </body>
+</html>
