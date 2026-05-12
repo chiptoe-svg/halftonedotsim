@@ -312,6 +312,27 @@ function getProfiledCmykToneColor() {
   return neugebauerToneColor(getGracolReferenceCoverages());
 }
 
+// Press-effective tone colors. Drive the crossfade target on the halftone
+// (left) side at high LPI so it reflects the user's dot-gain settings,
+// independently of the GRACoL reference color shown on the right side.
+function getPressSingleToneColor() {
+  const params = getDotGainParams();
+  const effective = pressEffectiveCoverage(singleCoverage / 100, params);
+
+  return neugebauerToneColor([0, 0, 0, effective]);
+}
+
+function getPressCmykToneColor() {
+  const params = getDotGainParams();
+  const coverages = inkScreens.map((screen) => {
+    const raw = Number(screen.slider.value) / 100;
+
+    return pressEffectiveCoverage(raw, params);
+  });
+
+  return neugebauerToneColor(coverages);
+}
+
 function drawDivider(splitX, height) {
   ctx.fillStyle = "rgba(16, 16, 16, 0.18)";
   ctx.fillRect(splitX - 0.5, 0, 1, height);
@@ -422,13 +443,13 @@ function drawSingleView(width, height, cell, splitX) {
   }
 
   drawInkScreen(
-    { amount: singleCoverage, angle: -16, color: "#101010" },
+    { amount: singleCoverage, angle: 45, color: "#101010" },
     { height, width: splitX, x: 0, y: 0 },
     width,
     height,
     cell,
   );
-  drawHighLpiSmoothing(getSingleToneColor(), splitX, height, cell);
+  drawHighLpiSmoothing(getPressSingleToneColor(), splitX, height, cell);
   drawDivider(splitX, height);
 }
 
@@ -445,7 +466,7 @@ function drawCmykView(width, height, cell, splitX) {
     );
   });
 
-  drawHighLpiSmoothing(getProfiledCmykToneColor(), splitX, height, cell);
+  drawHighLpiSmoothing(getPressCmykToneColor(), splitX, height, cell);
   drawDivider(splitX, height);
 }
 
