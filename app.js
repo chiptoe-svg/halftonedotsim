@@ -8,6 +8,9 @@ const cmykControls = document.querySelector("#cmykControls");
 const singleSlider = document.querySelector("#coverageSlider");
 const singleValue = document.querySelector("#coverageValue");
 const ctx = canvas.getContext("2d");
+const dotGainInput = document.querySelector("#dotGainInput");
+const minDotInput = document.querySelector("#minDotInput");
+const minDotPrintedInput = document.querySelector("#minDotPrintedInput");
 const paperRgb = [255, 250, 240];
 // GRACoL2013 CRPC6 CMYK-to-sRGB samples for paper, primaries, and overprints.
 const gracolNeugebauerRgb = [
@@ -58,6 +61,14 @@ const inkScreens = [
 
 let mode = "single";
 let singleCoverage = Number(singleSlider.value);
+
+function getDotGainParams() {
+  return {
+    dotGain: Math.max(0, Number(dotGainInput.value) / 100) || 0,
+    minDot: Math.max(0, Number(minDotInput.value) / 100) || 0,
+    minDotPrinted: Math.max(0, Number(minDotPrintedInput.value) / 100) || 0,
+  };
+}
 
 function syncSingleControl() {
   singleCoverage = Number(singleSlider.value);
@@ -352,6 +363,12 @@ inkScreens.forEach((screen) => {
     if (mode === "cmyk") {
       drawVisualizer();
     }
+  });
+});
+
+[dotGainInput, minDotInput, minDotPrintedInput].forEach((input) => {
+  input.addEventListener("change", () => {
+    drawVisualizer();
   });
 });
 
