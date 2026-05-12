@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LPI Simulation — Design Spec</title>
+    <style>
+      :root {
+        --paper: #f6f1e8;
+        --paper-deep: #e7ddce;
+        --ink: #101010;
+        --panel: #fffaf0;
+        --line: #cabda8;
+        --muted: #51493d;
+        --accent: #db3b2a;
+        --accent-deep: #9f2d24;
+        --blue: #1f6f8b;
+        --cyan: #00a2e3;
+        --magenta: #e6007d;
+        --yellow: #ffed00;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: clamp(24px, 5vw, 64px) clamp(20px, 6vw, 96px);
+        background:
+          linear-gradient(120deg, rgba(31, 111, 139, 0.10), transparent 34%),
+          linear-gradient(300deg, rgba(219, 59, 42, 0.08), transparent 38%),
+          var(--paper);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+      .doc { max-width: 980px; margin: 0 auto; }
+      header {
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 28px;
+        margin-bottom: 36px;
+      }
+      .eyebrow {
+        margin: 0 0 6px;
+        color: var(--blue);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 4vw, 3rem);
+        letter-spacing: -0.01em;
+        line-height: 1.05;
+      }
+      .lede {
+        margin: 0;
+        max-width: 70ch;
+        font-size: 1.05rem;
+        color: var(--muted);
+      }
+      h2 {
+        margin: 48px 0 14px;
+        font-size: 1.5rem;
+        letter-spacing: -0.005em;
+      }
+      h3 {
+        margin: 28px 0 10px;
+        font-size: 1rem;
+        color: var(--muted);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p, ul, ol { max-width: 76ch; }
+      code {
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.92em;
+        background: rgba(31, 111, 139, 0.10);
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
+      pre {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px 18px;
+        overflow-x: auto;
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+      pre code { background: none; padding: 0; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 18px 0;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        font-size: 0.95rem;
+      }
+      thead th {
+        background: rgba(31, 111, 139, 0.08);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      tbody tr:last-child td { border-bottom: 0; }
+      .callout {
+        margin: 18px 0;
+        padding: 14px 18px;
+        border-left: 4px solid var(--accent);
+        background: rgba(219, 59, 42, 0.06);
+        border-radius: 0 8px 8px 0;
+      }
+      .callout strong { color: var(--accent-deep); }
+
+      .mockup-frame {
+        margin: 22px 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        box-shadow: 0 18px 50px rgba(38, 31, 20, 0.10);
+        overflow: hidden;
+      }
+      .mockup-caption {
+        padding: 10px 18px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--blue);
+        background: rgba(231, 221, 206, 0.50);
+        border-bottom: 1px solid var(--line);
+      }
+      .mockup-body {
+        padding: 22px clamp(18px, 3vw, 36px);
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .mock-canvas {
+        height: 160px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background:
+          radial-gradient(circle at 30% 40%, rgba(16,16,16,0.85) 0, rgba(16,16,16,0.85) 3px, transparent 4px),
+          radial-gradient(circle at 60% 70%, rgba(16,16,16,0.85) 0, rgba(16,16,16,0.85) 3px, transparent 4px),
+          radial-gradient(circle at 80% 30%, rgba(16,16,16,0.85) 0, rgba(16,16,16,0.85) 3px, transparent 4px),
+          var(--panel);
+        background-size: 16px 16px;
+      }
+      .mock-lpi-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 18px;
+        padding: 14px 0 6px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .mock-lpi-row .label { font-weight: 900; color: var(--ink); }
+      .mock-lpi-row .track {
+        width: clamp(180px, 40vw, 320px);
+        height: 10px;
+        border-radius: 999px;
+        background: var(--paper-deep);
+        position: relative;
+        border: 1px solid rgba(16, 16, 16, 0.18);
+      }
+      .mock-lpi-row .fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 8%;
+        background: var(--accent);
+        border-radius: 999px;
+      }
+      .mock-lpi-row .thumb {
+        position: absolute;
+        top: 50%;
+        left: 8%;
+        width: 18px;
+        height: 18px;
+        margin-top: -9px;
+        margin-left: -9px;
+        border-radius: 50%;
+        background: var(--ink);
+        border: 2px solid var(--panel);
+        box-shadow: 0 2px 6px rgba(16, 16, 16, 0.28);
+      }
+      .mock-lpi-row .value {
+        min-width: 32px;
+        text-align: left;
+        font-variant-numeric: tabular-nums;
+        font-weight: 900;
+        color: var(--ink);
+        letter-spacing: 0;
+      }
+      .mock-strip {
+        margin-top: 14px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 24px;
+        align-items: center;
+      }
+      .mock-strip .stub {
+        background: rgba(231, 221, 206, 0.5);
+        border-radius: 6px;
+        height: 56px;
+        border: 1px dashed var(--line);
+      }
+      .mock-strip .meter {
+        font-size: 2.2rem;
+        font-weight: 900;
+        color: var(--accent-deep);
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+
+      footer {
+        margin-top: 64px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <article class="doc">
+      <header>
+        <p class="eyebrow">Design spec · 2026-05-12</p>
+        <h1>LPI Simulation</h1>
+        <p class="lede">
+          Add a screen-frequency slider (LPI — lines per inch) so the
+          visualizer can show the same coverage at different halftone
+          fineness: from coarse dots clearly visible up close, through the
+          midtone range where CMYK rotation angles produce the classic
+          rosette pattern, to high-frequency screens where individual dots
+          vanish into apparent solid tone at normal viewing distance.
+        </p>
+      </header>
+
+      <section>
+        <h2>Goal</h2>
+        <p>
+          The current visualizer renders at a fixed cell size derived from
+          the canvas dimensions. That makes the dots one fixed apparent
+          frequency. Adding an LPI control lets the user see <em>the same
+          ink coverage at different print-shop resolutions</em>, which is
+          the pedagogical hinge for several real-world concepts:
+        </p>
+        <ul>
+          <li><strong>Why newsprint looks coarse</strong> (low LPI — visible dots even up close)</li>
+          <li><strong>Why magazine print has the rosette</strong> (mid LPI — CMYK angle interference produces the recognizable flower-like pattern)</li>
+          <li><strong>Why fine offset looks like continuous tone</strong> (high LPI — dots smaller than the eye's resolving power at reading distance)</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>User-facing control</h2>
+        <p>
+          A single horizontal slider, centered, in its own row sitting
+          between the visualizer (canvas) and the existing control strip.
+          Label "LPI" on the left, the slider in the middle, and the
+          current LPI value on the right.
+        </p>
+
+        <div class="mockup-frame">
+          <div class="mockup-caption">Mockup — new LPI row between canvas and control strip</div>
+          <div class="mockup-body">
+            <div class="mock-canvas" role="presentation"></div>
+            <div class="mock-lpi-row">
+              <span class="label">LPI</span>
+              <span class="track">
+                <span class="fill"></span>
+                <span class="thumb"></span>
+              </span>
+              <span class="value">25</span>
+            </div>
+            <div class="mock-strip">
+              <div class="stub" title="title-group / mode toggle"></div>
+              <div class="meter">50%</div>
+              <div class="stub" title="INK slider + Dot Gain Settings"></div>
+            </div>
+          </div>
+        </div>
+
+        <h3>Input semantics</h3>
+        <table>
+          <thead>
+            <tr><th>Property</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Range</td><td>25 (coarse) – 200 (fine)</td></tr>
+            <tr><td>Step</td><td>1</td></tr>
+            <tr><td>Default</td><td><strong>25</strong> — matches today's chunky-dot first-load look so no existing user is surprised</td></tr>
+            <tr><td>Event</td><td><code>input</code> — live redraw on every keystroke / drag, like the existing INK slider</td></tr>
+            <tr><td>Value display</td><td>Numeric, right of the slider, no units suffix (the "LPI" label sets the context)</td></tr>
+            <tr><td>Scope</td><td>Global — applies to both K and CMYK modes</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Rendering model</h2>
+        <p>
+          The existing rendering pipeline already computes a <code>cell</code>
+          value that drives screen pitch (dot spacing). Currently it's
+          derived from canvas size:
+        </p>
+<pre><code>const cell = Math.max(15, Math.min(30, shorterSide / 18));</code></pre>
+        <p>
+          Replace this with an LPI-driven formula:
+        </p>
+<pre><code>const cell = Math.max(4, 750 / lpi);</code></pre>
+        <p>
+          Everything else (dot radius computation, screen-angle rotation per
+          ink, multiply blending of offscreen canvases) flows through
+          unchanged. The constant <code>750</code> is empirically chosen so
+          LPI 25 produces the same ~30 px cell the visualizer uses today.
+        </p>
+
+        <h3>Mapping at canonical values</h3>
+        <table>
+          <thead>
+            <tr><th>LPI slider</th><th>Cell size (px)</th><th>Visual effect</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>25</td><td>30 px</td><td>Chunky dots clearly visible — current default look</td></tr>
+            <tr><td>50</td><td>15 px</td><td>Smaller but still clearly dotted</td></tr>
+            <tr><td>85</td><td>~9 px</td><td>Newsprint feel — individual dots discernible up close</td></tr>
+            <tr><td>100</td><td>7.5 px</td><td>Rosette territory in CMYK — screen angles interfere visibly</td></tr>
+            <tr><td>150</td><td>5 px</td><td>Magazine-quality offset look — fine, dense, rosette pattern subtler</td></tr>
+            <tr><td>200</td><td>4 px (floored)</td><td>Dots near pixel limit; appears as solid tone at normal screen viewing distance</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Why the rosette emerges automatically</h3>
+        <p>
+          No new code is needed to produce rosettes — they fall out of the
+          existing per-ink screen rotation (C 15°, M 75°, Y 0°, K 45°) once
+          adjacent screens have dots small enough that their rotated grids
+          interfere. At LPI 25 each screen's grid is so coarse the angles
+          are obvious individually; at LPI 100–150 the four grids overlap
+          densely enough that the human eye resolves the moiré interference
+          as the rosette flower pattern; at LPI 200+ the cells are pixel-
+          scale and the dots merge optically.
+        </p>
+
+        <h3>Pixel-floor at <code>cell = 4 px</code></h3>
+        <p>
+          Below ~4 px per cell the dot radius at typical midtone coverage
+          drops below 2 px and antialiasing dominates. Rendering becomes
+          dominated by sub-pixel artifacts rather than meaningful dot
+          structure. The <code>Math.max(4, …)</code> floor stops the LPI
+          slider from producing nonsense renderings at the top of the
+          range.
+        </p>
+      </section>
+
+      <section>
+        <h2>Pipeline</h2>
+        <p>
+          One change at the top of <code>drawVisualizer()</code> in
+          <code>app.js</code>. The <code>cell</code> value flows downstream
+          into <code>getDotRadius(cell, amount)</code>, the per-ink offscreen
+          canvas dot loop, and the screen-angle rotation — all unmodified.
+        </p>
+<pre><code>function drawVisualizer() {
+  const ratio = window.devicePixelRatio || 1;
+  const width = canvas.width / ratio;
+  const height = canvas.height / ratio;
+  const lpi = Number(lpiSlider.value);
+  const cell = Math.max(4, 750 / lpi);
+  const splitX = width / 2;
+  // ... unchanged below
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Layout integration</h2>
+        <p>
+          A new <code>&lt;section class="lpi-row"&gt;</code> sits as a sibling
+          of the existing <code>&lt;section class="visualizer"&gt;</code> and
+          <code>&lt;section class="control-strip"&gt;</code> inside
+          <code>&lt;main class="app-shell"&gt;</code>. Update
+          <code>.app-shell</code>'s grid:
+        </p>
+<pre><code>.app-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;   /* canvas, LPI row, control strip */
+}</code></pre>
+        <p>
+          The LPI row is <code>auto</code>-height (a single slider line). It
+          uses a flex layout to center the label / slider / value group
+          horizontally, with a sensible max-width so the slider doesn't
+          stretch full-canvas at large viewport widths.
+        </p>
+      </section>
+
+      <section>
+        <h2>Defaults</h2>
+        <div class="callout">
+          <strong>LPI 25</strong> — matches the existing chunky-dot look so
+          anyone who knows the current visualizer sees no visual regression
+          on first load. Users opt into finer screens by dragging up.
+        </div>
+      </section>
+
+      <section>
+        <h2>Non-goals (out of scope for v1)</h2>
+        <ul>
+          <li><strong>Viewing-distance / optical blur simulation.</strong> The cell-size shrinkage is enough to demonstrate the "vanishing dots at high LPI" effect — users verify the imperceptibility by physically moving back from their screen. Explicit blur modeling would add complexity for marginal pedagogical gain.</li>
+          <li><strong>Press-type presets</strong> (Newsprint 85 / Coated 150 / Stochastic 240). Could be added later as a small preset row that just writes a value into the slider.</li>
+          <li><strong>Persistence across reloads.</strong> Defaults every load.</li>
+          <li><strong>Per-channel LPI</strong> (e.g., black at 175 LPI, color at 150). Real prepress sometimes uses this but it's exotic for a teaching tool.</li>
+          <li><strong>Real-world calibration</strong> (computing LPI from actual screen DPI and assumed viewing distance). The slider is a relative scale; users understand "lower = coarser, higher = finer" without needing literal inches.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Open questions / future work</h2>
+        <ul>
+          <li><strong>Performance at LPI 200 with CMYK slider drags.</strong> Per-channel offscreen canvases each draw thousands of small dots. Modern hardware should handle this, but if drag becomes choppy we may want to debounce or throttle redraws at the high end of the LPI range.</li>
+          <li><strong>Interaction with the existing smoothstep merge.</strong> The near-solid radius merge in <code>getDotRadius</code> uses absolute pixel offsets that may look different at very small cell sizes. Visual review during implementation will tell us if it needs adjustment.</li>
+          <li><strong>Slider label affordance.</strong> Should the value display include "LPI" as a suffix (e.g., "100 LPI") instead of relying on the static "LPI" label on the left? Decision is small and can be tuned during implementation.</li>
+        </ul>
+      </section>
+
+      <footer>
+        Spec for <code>halftonedotsim</code> · brainstormed 2026-05-12 ·
+        next step: implementation plan via <code>writing-plans</code>.
+      </footer>
+    </article>
+  </body>
+</html>
