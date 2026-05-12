@@ -7,9 +7,9 @@ Two modes:
 - **K** — single-channel black, one slider for dot coverage (0–100%).
 - **CMYK** — four channels with independent coverage sliders, each rendered at its traditional screen angle and blended with a printing-industry color profile.
 
-## Live demo
+## Try it live
 
-<https://chiptoe-svg.github.io/halftonedotsim/>
+A live build of this work (from a fork) is hosted at <https://chiptoe-svg.github.io/halftonedotsim/> — open it in any modern browser to play with the visualizer without cloning.
 
 ## Run locally
 
@@ -40,4 +40,4 @@ A few things worth pointing out if you read the source:
 
 ## Deploying
 
-The site deploys via **GitHub Pages** from the `main` branch at the repo root, with HTTPS enforced. Every push to `main` triggers a Pages rebuild and the live site updates within a minute or two — no build step, no GitHub Actions workflow.
+This is a static site with no build step, so it deploys cleanly to any static host (GitHub Pages, Netlify, Cloudflare Pages, S3 + CloudFront, etc.). For GitHub Pages: in Settings → Pages, set _Source: Deploy from a branch_ and pick `main` / `/ (root)`. Once enabled, every push to `main` triggers a Pages rebuild and the live site updates within a minute or two — no GitHub Actions workflow needed.
