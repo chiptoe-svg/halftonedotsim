@@ -12,6 +12,23 @@
         <canvas id="halftoneCanvas"></canvas>
       </section>
 
+      <section class="lpi-row" aria-label="Halftone screen frequency">
+        <div class="lpi-control">
+          <label class="lpi-label" for="lpiSlider">LPI</label>
+          <input
+            id="lpiSlider"
+            class="lpi-slider"
+            type="range"
+            min="25"
+            max="200"
+            step="1"
+            value="25"
+          />
+          <span id="lpiValue" class="lpi-value">25</span>
+        </div>
+        <div class="lpi-row-right" aria-hidden="true"></div>
+      </section>
+
       <section
         class="control-strip"
         id="controlStrip"
