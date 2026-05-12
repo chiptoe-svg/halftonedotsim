@@ -126,15 +126,6 @@ function resizeCanvas() {
 function drawPaper(width, height) {
   ctx.fillStyle = "#fffaf0";
   ctx.fillRect(0, 0, width, height);
-
-  ctx.globalAlpha = 0.26;
-  ctx.fillStyle = "#cabda8";
-
-  for (let y = 18; y < height; y += 36) {
-    ctx.fillRect(0, y, width, 1);
-  }
-
-  ctx.globalAlpha = 1;
 }
 
 function smoothstep(start, end, current) {
