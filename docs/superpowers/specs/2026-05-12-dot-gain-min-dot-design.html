@@ -49,6 +49,24 @@
         margin-bottom: 36px;
       }
 
+      .background-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 18px;
+        padding: 8px 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .background-link:hover { border-color: var(--accent); color: var(--accent-deep); }
+      .background-link::after { content: "→"; color: var(--accent); }
+
       .eyebrow {
         margin: 0 0 6px;
         color: var(--blue);
@@ -461,6 +479,9 @@
           becomes a teaching tool: <em>"this is what you designed against
           versus what you'll get on press."</em>
         </p>
+        <a class="background-link" href="./2026-05-12-dot-gain-min-dot-background.html">
+          Background discussion
+        </a>
       </header>
 
       <section>
