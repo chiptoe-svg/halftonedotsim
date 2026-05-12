@@ -469,6 +469,12 @@ inkScreens.forEach((screen) => {
 [dotGainInput, minDotInput, minDotPrintedInput].forEach((input) => {
   input.addEventListener("input", syncDotGainApplyButton);
   input.addEventListener("change", syncDotGainApplyButton);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !dotGainApplyButton.disabled) {
+      event.preventDefault();
+      applyDotGainSettings();
+    }
+  });
 });
 
 dotGainApplyButton.addEventListener("click", applyDotGainSettings);
