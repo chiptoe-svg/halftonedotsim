@@ -119,9 +119,17 @@
             </label>
           </div>
 
-          <details class="dot-gain-controls" id="dotGainDetails">
-            <summary>Dot Gain</summary>
-            <div class="dot-gain-popover">
+          <div class="dot-gain-controls">
+            <button
+              id="dotGainTrigger"
+              class="dot-gain-trigger"
+              type="button"
+              aria-expanded="false"
+              aria-controls="dotGainPopover"
+            >
+              Dot Gain Settings
+            </button>
+            <div id="dotGainPopover" class="dot-gain-popover" hidden>
               <label class="dot-gain-input" for="dotGainInput">
                 <span>Dot Gain</span>
                 <span class="input-row">
@@ -152,7 +160,7 @@
                 Apply
               </button>
             </div>
-          </details>
+          </div>
         </div>
       </section>
     </main>

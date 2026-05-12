@@ -290,36 +290,39 @@ input[type="range"]:focus-visible {
   border-top: 1px dashed var(--line);
 }
 
-.dot-gain-controls summary {
-  cursor: pointer;
-  list-style: none;
+.dot-gain-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: #51493d;
+  cursor: pointer;
+  font: inherit;
   font-size: 0.7rem;
   font-weight: 900;
   letter-spacing: 0.08em;
+  padding: 6px 14px;
   text-transform: uppercase;
-  color: #51493d;
-  user-select: none;
-  white-space: nowrap;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
-.dot-gain-controls summary::-webkit-details-marker { display: none; }
-
-.dot-gain-controls summary::before {
-  content: "\25B8";
-  display: inline-block;
-  font-size: 0.65rem;
-  color: var(--accent);
-  transition: transform 120ms ease;
+.dot-gain-trigger:hover {
+  background: var(--paper-deep);
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
-.dot-gain-controls[open] summary::before {
-  transform: rotate(90deg);
+.dot-gain-trigger[aria-expanded="true"] {
+  background: var(--ink);
+  color: var(--panel);
+  border-color: var(--ink);
 }
 
-.dot-gain-controls summary:hover { color: var(--ink); }
+.dot-gain-trigger:focus-visible {
+  outline: 3px solid rgba(31, 111, 139, 0.32);
+  outline-offset: 3px;
+}
 
 .dot-gain-popover {
   position: absolute;

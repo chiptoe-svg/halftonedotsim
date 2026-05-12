@@ -12,6 +12,8 @@ const dotGainInput = document.querySelector("#dotGainInput");
 const minDotInput = document.querySelector("#minDotInput");
 const minDotPrintedInput = document.querySelector("#minDotPrintedInput");
 const dotGainApplyButton = document.querySelector("#dotGainApplyButton");
+const dotGainTrigger = document.querySelector("#dotGainTrigger");
+const dotGainPopover = document.querySelector("#dotGainPopover");
 const paperRgb = [255, 250, 240];
 // GRACoL2013 CRPC6 CMYK-to-sRGB samples for paper, primaries, and overprints.
 const gracolNeugebauerRgb = [
@@ -470,6 +472,48 @@ inkScreens.forEach((screen) => {
 });
 
 dotGainApplyButton.addEventListener("click", applyDotGainSettings);
+
+function isDotGainPopoverOpen() {
+  return dotGainTrigger.getAttribute("aria-expanded") === "true";
+}
+
+function openDotGainPopover() {
+  dotGainTrigger.setAttribute("aria-expanded", "true");
+  dotGainPopover.hidden = false;
+  document.addEventListener("mousedown", handleDotGainOutsideClick);
+  document.addEventListener("keydown", handleDotGainEscape);
+}
+
+function closeDotGainPopover() {
+  dotGainTrigger.setAttribute("aria-expanded", "false");
+  dotGainPopover.hidden = true;
+  document.removeEventListener("mousedown", handleDotGainOutsideClick);
+  document.removeEventListener("keydown", handleDotGainEscape);
+}
+
+function handleDotGainOutsideClick(event) {
+  if (
+    !dotGainPopover.contains(event.target) &&
+    !dotGainTrigger.contains(event.target)
+  ) {
+    closeDotGainPopover();
+  }
+}
+
+function handleDotGainEscape(event) {
+  if (event.key === "Escape") {
+    closeDotGainPopover();
+    dotGainTrigger.focus();
+  }
+}
+
+dotGainTrigger.addEventListener("click", () => {
+  if (isDotGainPopoverOpen()) {
+    closeDotGainPopover();
+  } else {
+    openDotGainPopover();
+  }
+});
 
 window.addEventListener("resize", resizeCanvas);
 
