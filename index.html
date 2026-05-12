@@ -118,6 +118,33 @@
               />
             </label>
           </div>
+
+          <details class="dot-gain-controls" id="dotGainDetails">
+            <summary>Dot Gain</summary>
+            <div class="dot-gain-inputs">
+              <label class="dot-gain-input" for="dotGainInput">
+                <span>Dot Gain</span>
+                <span class="input-row">
+                  <input id="dotGainInput" type="number" min="0" max="40" step="1" value="18" />
+                  <span class="suffix">%</span>
+                </span>
+              </label>
+              <label class="dot-gain-input" for="minDotInput">
+                <span>Min Dot</span>
+                <span class="input-row">
+                  <input id="minDotInput" type="number" min="0" max="15" step="0.5" value="3" />
+                  <span class="suffix">%</span>
+                </span>
+              </label>
+              <label class="dot-gain-input" for="minDotPrintedInput">
+                <span>Min Dot Printed</span>
+                <span class="input-row">
+                  <input id="minDotPrintedInput" type="number" min="0" max="25" step="0.5" value="5" />
+                  <span class="suffix">%</span>
+                </span>
+              </label>
+            </div>
+          </details>
         </div>
       </section>
     </main>
