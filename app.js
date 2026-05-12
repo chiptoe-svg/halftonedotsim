@@ -545,11 +545,16 @@ function renderInkScreen(screen, clip, width, height, cell) {
   offCtx.translate(-width / 2, -height / 2);
 
   // Fill the rotated area with a cached dot pattern. One fillRect replaces
-  // hundreds of thousands of arc/rect calls — the browser's pattern tile
-  // path is native and fast regardless of cell size.
+  // hundreds of thousands of arc calls — the browser's pattern tile path
+  // is native and stays sub-millisecond regardless of cell size.
   const patternCanvas = getDotPattern(screen.color, cell, radius, ratio);
   const pattern = offCtx.createPattern(patternCanvas, "repeat");
 
+  // Keep high-quality sampling so rotated pattern edges stay smooth rather
+  // than aliased. The post-blur stage below handles any remaining softness
+  // at high LPI.
+  offCtx.imageSmoothingEnabled = true;
+  offCtx.imageSmoothingQuality = "high";
   offCtx.fillStyle = pattern;
   offCtx.fillRect(-margin, -margin, width + 2 * margin, height + 2 * margin);
 
