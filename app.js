@@ -358,8 +358,22 @@ function getPressCmykToneColor() {
   return neugebauerToneColor(coverages);
 }
 
-function drawDivider(splitX, height) {
-  ctx.fillStyle = "rgba(16, 16, 16, 0.18)";
+function drawDivider(splitX, height, cell) {
+  // Fade the divider in lockstep with the high-LPI crossfade. When the
+  // halftone half is being smoothed toward the reference color, a visible
+  // divider creates simultaneous-contrast illusions that make two identical
+  // tones appear different. Fading the divider out at the same rate keeps
+  // matched tones reading as a single seamless field; when the halves are
+  // genuinely different colors (high dot gain), the color step itself
+  // marks the boundary.
+  const crossfadeAlpha = Math.max(0, Math.min(1, (4 - cell) / 1));
+  const dividerOpacity = 0.18 * (1 - crossfadeAlpha);
+
+  if (dividerOpacity <= 0) {
+    return;
+  }
+
+  ctx.fillStyle = `rgba(16, 16, 16, ${dividerOpacity})`;
   ctx.fillRect(splitX - 0.5, 0, 1, height);
 }
 
@@ -475,7 +489,7 @@ function drawSingleView(width, height, cell, splitX) {
     cell,
   );
   drawHighLpiSmoothing(getPressSingleToneColor(), splitX, height, cell);
-  drawDivider(splitX, height);
+  drawDivider(splitX, height, cell);
 }
 
 function drawCmykView(width, height, cell, splitX) {
@@ -492,7 +506,7 @@ function drawCmykView(width, height, cell, splitX) {
   });
 
   drawHighLpiSmoothing(getPressCmykToneColor(), splitX, height, cell);
-  drawDivider(splitX, height);
+  drawDivider(splitX, height, cell);
 }
 
 function drawVisualizer() {
