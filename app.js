@@ -32,6 +32,17 @@ const gracolNeugebauerRgb = [
   [0, 0, 0],
 ];
 
+// Channel-order index for inkScreens: 0=C, 1=M, 2=Y, 3=K
+const gracolChannelOrder = ["c", "m", "y", "k"];
+
+// G7/GRACoL coated #1 target TVI: extra coverage at 50% file value, per channel.
+const gracolCoatedTviAt50 = {
+  c: 0.12,
+  m: 0.14,
+  y: 0.13,
+  k: 0.18,
+};
+
 const inkScreens = [
   {
     angle: 15,
@@ -175,6 +186,20 @@ function pressEffectiveAmount(rawAmount) {
   return effective * 100;
 }
 
+function applyGracolTvi(cFrac, channel) {
+  if (cFrac <= 0) {
+    return 0;
+  }
+
+  if (cFrac >= 1) {
+    return 1;
+  }
+
+  const tviAt50 = gracolCoatedTviAt50[channel] ?? 0;
+
+  return Math.min(1, cFrac + tviAt50 * bell(cFrac));
+}
+
 function getDotRadius(cell, amount) {
   const areaRadius = Math.sqrt(amount / 100) * cell * 0.48;
   const mergeAmount = smoothstep(72, 99, amount);
@@ -213,7 +238,7 @@ function getPaperRelativeRgb(rgb) {
 }
 
 function getSingleToneColor() {
-  const amount = singleCoverage / 100;
+  const amount = applyGracolTvi(singleCoverage / 100, "k");
   const red = blendChannel(255, 16, amount);
   const green = blendChannel(250, 16, amount);
   const blue = blendChannel(240, 16, amount);
@@ -225,8 +250,16 @@ function getScreenCoverages() {
   return inkScreens.map((screen) => Number(screen.slider.value) / 100);
 }
 
+function getGracolReferenceCoverages() {
+  return inkScreens.map((screen, index) => {
+    const raw = Number(screen.slider.value) / 100;
+
+    return applyGracolTvi(raw, gracolChannelOrder[index]);
+  });
+}
+
 function getProfiledCmykToneColor() {
-  const coverages = getScreenCoverages();
+  const coverages = getGracolReferenceCoverages();
   const linearRgb = [0, 0, 0];
 
   gracolNeugebauerRgb.forEach((rgb, mask) => {
