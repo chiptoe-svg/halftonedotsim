@@ -370,19 +370,20 @@ function renderInkScreen(screen, clip, width, height, cell) {
   return offscreen;
 }
 
-function compositeInkScreen(offscreen, width, height) {
+function compositeInkScreen(offscreen, width, height, cell) {
   if (!offscreen) {
     return;
   }
 
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
+  ctx.filter = cell < 5 ? `blur(${Math.max(0.5, (5 - cell) * 0.6)}px)` : "none";
   ctx.drawImage(offscreen, 0, 0, width, height);
   ctx.restore();
 }
 
 function drawInkScreen(screen, clip, width, height, cell) {
-  compositeInkScreen(renderInkScreen(screen, clip, width, height, cell), width, height);
+  compositeInkScreen(renderInkScreen(screen, clip, width, height, cell), width, height, cell);
 }
 
 function drawCmykTone(splitX, width, height) {
@@ -431,7 +432,7 @@ function drawVisualizer() {
   const width = canvas.width / ratio;
   const height = canvas.height / ratio;
   const lpi = Number(lpiSlider.value);
-  const cell = Math.max(4, 750 / lpi);
+  const cell = Math.max(2, 600 / lpi);
   const splitX = width / 2;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
