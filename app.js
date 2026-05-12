@@ -255,7 +255,8 @@ function drawDivider(splitX, height) {
 // than darkening each other. The returned canvas is later composited onto the
 // main canvas with `multiply`, so cross-ink overlaps still darken correctly.
 function renderInkScreen(screen, clip, width, height, cell) {
-  const amount = Number(screen.slider?.value ?? screen.amount);
+  const rawAmount = Number(screen.slider?.value ?? screen.amount);
+  const amount = pressEffectiveAmount(rawAmount);
 
   if (amount <= 0) {
     return null;
