@@ -358,16 +358,21 @@ function getPressCmykToneColor() {
   return neugebauerToneColor(coverages);
 }
 
+// High-LPI smoothing crossfade alpha: 0 at cell >= 4, ramping to 1 at cell <= 3.
+// Used by the crossfade overlay, the divider fade, and the ink-screen skip
+// optimization so all three agree on when the halftone half is fully replaced
+// by the predicted reference color.
+function highLpiCrossfadeAlpha(cell) {
+  return Math.max(0, Math.min(1, (4 - cell) / 1));
+}
+
 function drawDivider(splitX, height, cell) {
-  // Fade the divider in lockstep with the high-LPI crossfade. When the
-  // halftone half is being smoothed toward the reference color, a visible
-  // divider creates simultaneous-contrast illusions that make two identical
-  // tones appear different. Fading the divider out at the same rate keeps
-  // matched tones reading as a single seamless field; when the halves are
-  // genuinely different colors (high dot gain), the color step itself
-  // marks the boundary.
-  const crossfadeAlpha = Math.max(0, Math.min(1, (4 - cell) / 1));
-  const dividerOpacity = 0.18 * (1 - crossfadeAlpha);
+  // Fade the divider in lockstep with the crossfade. When the halftone half
+  // is being smoothed toward the reference color, a visible divider creates
+  // simultaneous-contrast illusions that make identical tones appear
+  // different. When dot gain is high enough that the halves are genuinely
+  // different colors, the color step itself marks the boundary.
+  const dividerOpacity = 0.18 * (1 - highLpiCrossfadeAlpha(cell));
 
   if (dividerOpacity <= 0) {
     return;
@@ -383,11 +388,11 @@ function drawDivider(splitX, height, cell) {
 // so the slider's top end actually reaches "indistinguishable from the right
 // side" as the spec requires.
 function drawHighLpiSmoothing(toneColor, splitX, height, cell) {
-  if (cell >= 4) {
+  const alpha = highLpiCrossfadeAlpha(cell);
+
+  if (alpha <= 0) {
     return;
   }
-
-  const alpha = Math.max(0, Math.min(1, (4 - cell) / 1));
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -400,6 +405,103 @@ function drawHighLpiSmoothing(toneColor, splitX, height, cell) {
 // so overlapping dots of the same ink merge into a single flat shape rather
 // than darkening each other. The returned canvas is later composited onto the
 // main canvas with `multiply`, so cross-ink overlaps still darken correctly.
+// Pool of offscreen canvases keyed by channel. Reused across draws so we
+// don't allocate a new canvas (and its backing GPU memory) on every input
+// event during a slider drag.
+const offscreenPool = new Map();
+
+function acquireOffscreen(channel, deviceWidth, deviceHeight) {
+  const key = channel ?? "single";
+  let offscreen = offscreenPool.get(key);
+
+  if (!offscreen) {
+    offscreen = document.createElement("canvas");
+    offscreenPool.set(key, offscreen);
+  }
+
+  if (offscreen.width !== deviceWidth || offscreen.height !== deviceHeight) {
+    // Setting width/height auto-clears the bitmap and resets transforms.
+    offscreen.width = deviceWidth;
+    offscreen.height = deviceHeight;
+  } else {
+    const offCtx = offscreen.getContext("2d");
+
+    offCtx.setTransform(1, 0, 0, 1, 0, 0);
+    offCtx.clearRect(0, 0, deviceWidth, deviceHeight);
+  }
+
+  return offscreen;
+}
+
+// Build a tileable dot pattern (cell × cell device pixels) for the given
+// color and dot radius. Drawn once per (color, cell, radius) combination
+// and reused — far cheaper than iterating hundreds of thousands of arcs
+// across the full offscreen on every frame.
+//
+// Layout: one centered dot, plus dots at the four corners. When the tile
+// repeats, the corner dots stitch together with their neighbors to form
+// continuous boundary dots. This handles both isolated-dot and overlapping
+// (high-coverage) regimes correctly.
+const patternCache = new Map();
+
+function getDotPattern(color, cell, radius, ratio) {
+  const cacheKey = `${color}|${cell.toFixed(3)}|${radius.toFixed(3)}|${ratio}`;
+  const cached = patternCache.get(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const deviceCell = Math.max(2, Math.round(cell * ratio));
+  const deviceRadius = Math.max(0.5, radius * ratio);
+  const pCanvas = document.createElement("canvas");
+
+  pCanvas.width = deviceCell;
+  pCanvas.height = deviceCell;
+
+  const pCtx = pCanvas.getContext("2d");
+
+  pCtx.fillStyle = color;
+  pCtx.beginPath();
+
+  // Center dot — one per tile produces the canonical square dot grid when
+  // the tile repeats.
+  pCtx.moveTo(deviceCell / 2 + deviceRadius, deviceCell / 2);
+  pCtx.arc(deviceCell / 2, deviceCell / 2, deviceRadius, 0, Math.PI * 2);
+
+  // Only when dots are large enough to overlap their tile boundaries do we
+  // also need corner/edge dots: those quarter-circles stitch across tile
+  // edges with their neighbors' to form continuous boundary ink.
+  if (deviceRadius > deviceCell / 2) {
+    const edges = [
+      [0, 0],
+      [deviceCell, 0],
+      [0, deviceCell],
+      [deviceCell, deviceCell],
+      [deviceCell / 2, 0],
+      [deviceCell / 2, deviceCell],
+      [0, deviceCell / 2],
+      [deviceCell, deviceCell / 2],
+    ];
+
+    for (const [cx, cy] of edges) {
+      pCtx.moveTo(cx + deviceRadius, cy);
+      pCtx.arc(cx, cy, deviceRadius, 0, Math.PI * 2);
+    }
+  }
+
+  pCtx.fill();
+
+  // Cap the cache so a long slider drag (constantly changing radius) doesn't
+  // accumulate unbounded canvas allocations.
+  if (patternCache.size > 64) {
+    patternCache.clear();
+  }
+  patternCache.set(cacheKey, pCanvas);
+
+  return pCanvas;
+}
+
 function renderInkScreen(screen, clip, width, height, cell) {
   const rawAmount = Number(screen.slider?.value ?? screen.amount);
   const amount = pressEffectiveAmount(rawAmount, pressChannelScale(screen.channel));
@@ -409,11 +511,11 @@ function renderInkScreen(screen, clip, width, height, cell) {
   }
 
   const ratio = window.devicePixelRatio || 1;
-  const offscreen = document.createElement("canvas");
-
-  offscreen.width = Math.round(width * ratio);
-  offscreen.height = Math.round(height * ratio);
-
+  const offscreen = acquireOffscreen(
+    screen.channel,
+    Math.round(width * ratio),
+    Math.round(height * ratio),
+  );
   const offCtx = offscreen.getContext("2d");
 
   offCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -433,19 +535,23 @@ function renderInkScreen(screen, clip, width, height, cell) {
     return null;
   }
 
-  const margin = Math.hypot(width, height);
+  // Minimum margin to cover the canvas after rotation: for any rotation
+  // around center, the worst-case overhang per axis is (diagonal - dim) / 2.
+  const diagonal = Math.hypot(width, height);
+  const margin = Math.ceil(Math.max(diagonal - width, diagonal - height) / 2 + cell);
 
   offCtx.translate(width / 2, height / 2);
   offCtx.rotate((screen.angle * Math.PI) / 180);
   offCtx.translate(-width / 2, -height / 2);
 
-  for (let y = -margin; y < height + margin; y += cell) {
-    for (let x = -margin; x < width + margin; x += cell) {
-      offCtx.beginPath();
-      offCtx.arc(x, y, radius, 0, Math.PI * 2);
-      offCtx.fill();
-    }
-  }
+  // Fill the rotated area with a cached dot pattern. One fillRect replaces
+  // hundreds of thousands of arc/rect calls — the browser's pattern tile
+  // path is native and fast regardless of cell size.
+  const patternCanvas = getDotPattern(screen.color, cell, radius, ratio);
+  const pattern = offCtx.createPattern(patternCanvas, "repeat");
+
+  offCtx.fillStyle = pattern;
+  offCtx.fillRect(-margin, -margin, width + 2 * margin, height + 2 * margin);
 
   return offscreen;
 }
@@ -457,7 +563,10 @@ function compositeInkScreen(offscreen, width, height, cell) {
 
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
-  ctx.filter = cell < 5 ? `blur(${Math.max(0.5, (5 - cell) * 0.6)}px)` : "none";
+  // Blur smooths the rect-squareness and the rosette aliasing into tone.
+  // Gated tightly so it only runs when actually needed (small cells), which
+  // is also where the crossfade is approaching full coverage.
+  ctx.filter = cell < 4 ? `blur(${Math.max(0.4, (4 - cell) * 0.6)}px)` : "none";
   ctx.drawImage(offscreen, 0, 0, width, height);
   ctx.restore();
 }
@@ -481,13 +590,18 @@ function drawSingleView(width, height, cell, splitX) {
     return;
   }
 
-  drawInkScreen(
-    { amount: singleCoverage, angle: 45, channel: "k", color: "#101010" },
-    { height, width: splitX, x: 0, y: 0 },
-    width,
-    height,
-    cell,
-  );
+  // Skip ink-screen rendering entirely when the crossfade fully covers it.
+  // At LPI 200 (cell = 3) this saves tens of thousands of arc draws plus a
+  // blur filter pass that the user would never have seen anyway.
+  if (highLpiCrossfadeAlpha(cell) < 1) {
+    drawInkScreen(
+      { amount: singleCoverage, angle: 45, channel: "k", color: "#101010" },
+      { height, width: splitX, x: 0, y: 0 },
+      width,
+      height,
+      cell,
+    );
+  }
   drawHighLpiSmoothing(getPressSingleToneColor(), splitX, height, cell);
   drawDivider(splitX, height, cell);
 }
@@ -495,15 +609,18 @@ function drawSingleView(width, height, cell, splitX) {
 function drawCmykView(width, height, cell, splitX) {
   drawCmykTone(splitX, width, height);
 
-  inkScreens.forEach((screen) => {
-    drawInkScreen(
-      screen,
-      { height, width: splitX, x: 0, y: 0 },
-      width,
-      height,
-      cell,
-    );
-  });
+  // Same skip — four channels' worth of dots + blurs avoided at full crossfade.
+  if (highLpiCrossfadeAlpha(cell) < 1) {
+    inkScreens.forEach((screen) => {
+      drawInkScreen(
+        screen,
+        { height, width: splitX, x: 0, y: 0 },
+        width,
+        height,
+        cell,
+      );
+    });
+  }
 
   drawHighLpiSmoothing(getPressCmykToneColor(), splitX, height, cell);
   drawDivider(splitX, height, cell);
@@ -541,11 +658,28 @@ modeButtons.forEach((button) => {
   });
 });
 
+// Coalesce rapid-fire slider events into one draw per frame. Without this,
+// dragging a slider at >60 events/sec can queue more drawVisualizer() calls
+// than the browser can finish, causing input lag. With rAF throttling we
+// render at most once per frame regardless of input rate.
+let drawScheduled = false;
+function requestDraw() {
+  if (drawScheduled) {
+    return;
+  }
+
+  drawScheduled = true;
+  requestAnimationFrame(() => {
+    drawScheduled = false;
+    drawVisualizer();
+  });
+}
+
 singleSlider.addEventListener("input", () => {
   syncSingleControl();
 
   if (mode === "single") {
-    drawVisualizer();
+    requestDraw();
   }
 });
 
@@ -554,7 +688,7 @@ inkScreens.forEach((screen) => {
     syncCmykControls();
 
     if (mode === "cmyk") {
-      drawVisualizer();
+      requestDraw();
     }
   });
 });
@@ -616,7 +750,7 @@ dotGainTrigger.addEventListener("click", () => {
 
 lpiSlider.addEventListener("input", () => {
   syncLpiValue();
-  drawVisualizer();
+  requestDraw();
 });
 
 window.addEventListener("resize", resizeCanvas);
