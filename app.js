@@ -132,6 +132,49 @@ function smoothstep(start, end, current) {
   return progress * progress * (3 - 2 * progress);
 }
 
+function bell(c) {
+  return 4 * c * (1 - c);
+}
+
+function bloomDecay(c, minDotFrac) {
+  const range = 0.5 - minDotFrac;
+
+  if (range <= 0) {
+    return 0;
+  }
+
+  const t = (c - minDotFrac) / range;
+
+  return Math.max(0, Math.min(1, 1 - t));
+}
+
+function pressEffectiveCoverage(cFrac, params) {
+  if (cFrac <= 0) {
+    return 0;
+  }
+
+  if (cFrac < params.minDot) {
+    return 0;
+  }
+
+  if (cFrac >= 1) {
+    return 1;
+  }
+
+  const bloomAmplitude = Math.max(0, params.minDotPrinted - params.minDot);
+  const bloomTerm = bloomAmplitude * bloomDecay(cFrac, params.minDot);
+  const spreadTerm = params.dotGain * bell(cFrac);
+
+  return Math.min(1, cFrac + bloomTerm + spreadTerm);
+}
+
+function pressEffectiveAmount(rawAmount) {
+  const cFrac = rawAmount / 100;
+  const effective = pressEffectiveCoverage(cFrac, getDotGainParams());
+
+  return effective * 100;
+}
+
 function getDotRadius(cell, amount) {
   const areaRadius = Math.sqrt(amount / 100) * cell * 0.48;
   const mergeAmount = smoothstep(72, 99, amount);
