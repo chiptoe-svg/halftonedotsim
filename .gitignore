@@ -16,3 +16,6 @@ yarn-error.log*
 # Build / temp output (not used today, but reserved)
 dist/
 .cache/
+
+# Playwright MCP run artifacts (snapshots, console logs, ad-hoc screenshots)
+.playwright-mcp/

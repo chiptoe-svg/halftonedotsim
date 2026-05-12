@@ -196,48 +196,72 @@ function drawDivider(splitX, height) {
   ctx.fillRect(splitX - 0.5, 0, 1, height);
 }
 
-function drawInkScreen(screen, clip, width, height, cell) {
+// Render one ink screen to its own offscreen canvas using normal compositing,
+// so overlapping dots of the same ink merge into a single flat shape rather
+// than darkening each other. The returned canvas is later composited onto the
+// main canvas with `multiply`, so cross-ink overlaps still darken correctly.
+function renderInkScreen(screen, clip, width, height, cell) {
   const amount = Number(screen.slider?.value ?? screen.amount);
 
   if (amount <= 0) {
-    return;
+    return null;
   }
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(clip.x, clip.y, clip.width, clip.height);
-  ctx.clip();
-  ctx.globalCompositeOperation = "multiply";
-  ctx.fillStyle = screen.color;
+  const ratio = window.devicePixelRatio || 1;
+  const offscreen = document.createElement("canvas");
+
+  offscreen.width = Math.round(width * ratio);
+  offscreen.height = Math.round(height * ratio);
+
+  const offCtx = offscreen.getContext("2d");
+
+  offCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  offCtx.beginPath();
+  offCtx.rect(clip.x, clip.y, clip.width, clip.height);
+  offCtx.clip();
+  offCtx.fillStyle = screen.color;
 
   if (amount >= 100) {
-    ctx.fillRect(clip.x, clip.y, clip.width, clip.height);
-    ctx.restore();
-    return;
+    offCtx.fillRect(clip.x, clip.y, clip.width, clip.height);
+    return offscreen;
   }
 
   const radius = getDotRadius(cell, amount);
 
   if (radius <= 0.08) {
-    ctx.restore();
-    return;
+    return null;
   }
 
   const margin = Math.hypot(width, height);
 
-  ctx.translate(width / 2, height / 2);
-  ctx.rotate((screen.angle * Math.PI) / 180);
-  ctx.translate(-width / 2, -height / 2);
+  offCtx.translate(width / 2, height / 2);
+  offCtx.rotate((screen.angle * Math.PI) / 180);
+  offCtx.translate(-width / 2, -height / 2);
 
   for (let y = -margin; y < height + margin; y += cell) {
     for (let x = -margin; x < width + margin; x += cell) {
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
+      offCtx.beginPath();
+      offCtx.arc(x, y, radius, 0, Math.PI * 2);
+      offCtx.fill();
     }
   }
 
+  return offscreen;
+}
+
+function compositeInkScreen(offscreen, width, height) {
+  if (!offscreen) {
+    return;
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.drawImage(offscreen, 0, 0, width, height);
   ctx.restore();
+}
+
+function drawInkScreen(screen, clip, width, height, cell) {
+  compositeInkScreen(renderInkScreen(screen, clip, width, height, cell), width, height);
 }
 
 function drawCmykTone(splitX, width, height) {
