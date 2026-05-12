@@ -576,23 +576,19 @@ function renderInkScreen(screen, clip, width, height, cell) {
   return offscreen;
 }
 
-function compositeInkScreen(offscreen, width, height, cell) {
+function compositeInkScreen(offscreen, width, height) {
   if (!offscreen) {
     return;
   }
 
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
-  // Blur smooths the rect-squareness and the rosette aliasing into tone.
-  // Gated tightly so it only runs when actually needed (small cells), which
-  // is also where the crossfade is approaching full coverage.
-  ctx.filter = cell < 4 ? `blur(${Math.max(0.4, (4 - cell) * 0.6)}px)` : "none";
   ctx.drawImage(offscreen, 0, 0, width, height);
   ctx.restore();
 }
 
 function drawInkScreen(screen, clip, width, height, cell) {
-  compositeInkScreen(renderInkScreen(screen, clip, width, height, cell), width, height, cell);
+  compositeInkScreen(renderInkScreen(screen, clip, width, height, cell), width, height);
 }
 
 function drawCmykTone(splitX, width, height) {
