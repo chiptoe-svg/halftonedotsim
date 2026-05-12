@@ -1,0 +1,339 @@
+const canvas = document.querySelector("#halftoneCanvas");
+const controlStrip = document.querySelector("#controlStrip");
+const modeTitle = document.querySelector("#modeTitle");
+const modeButtons = document.querySelectorAll(".mode-button");
+const singleMeter = document.querySelector("#singleMeter");
+const singleControls = document.querySelector("#singleControls");
+const cmykControls = document.querySelector("#cmykControls");
+const singleSlider = document.querySelector("#coverageSlider");
+const singleValue = document.querySelector("#coverageValue");
+const ctx = canvas.getContext("2d");
+const paperRgb = [255, 250, 240];
+// GRACoL2013 CRPC6 CMYK-to-sRGB samples for paper, primaries, and overprints.
+const gracolNeugebauerRgb = [
+  [255, 255, 255],
+  [0, 162, 227],
+  [230, 0, 125],
+  [47, 44, 132],
+  [255, 237, 0],
+  [0, 151, 64],
+  [227, 9, 15],
+  [50, 50, 47],
+  [28, 28, 26],
+  [0, 11, 31],
+  [37, 0, 1],
+  [0, 0, 3],
+  [25, 32, 0],
+  [0, 16, 0],
+  [30, 0, 0],
+  [0, 0, 0],
+];
+
+const inkScreens = [
+  {
+    angle: 15,
+    color: "rgb(0, 162, 227)",
+    output: document.querySelector("#cyanValue"),
+    slider: document.querySelector("#cyanSlider"),
+  },
+  {
+    angle: 75,
+    color: "rgb(230, 0, 125)",
+    output: document.querySelector("#magentaValue"),
+    slider: document.querySelector("#magentaSlider"),
+  },
+  {
+    angle: 0,
+    color: "rgb(255, 237, 0)",
+    output: document.querySelector("#yellowValue"),
+    slider: document.querySelector("#yellowSlider"),
+  },
+  {
+    angle: 45,
+    color: "rgb(28, 28, 26)",
+    output: document.querySelector("#blackValue"),
+    slider: document.querySelector("#blackSlider"),
+  },
+];
+
+let mode = "single";
+let singleCoverage = Number(singleSlider.value);
+
+function syncSingleControl() {
+  singleCoverage = Number(singleSlider.value);
+  singleSlider.style.setProperty("--track-fill", `${singleCoverage}%`);
+  singleValue.textContent = String(singleCoverage);
+}
+
+function syncCmykControls() {
+  inkScreens.forEach((screen) => {
+    const amount = Number(screen.slider.value);
+
+    screen.slider.style.setProperty("--track-fill", `${amount}%`);
+    screen.output.textContent = `${amount}%`;
+  });
+}
+
+function setMode(nextMode) {
+  mode = nextMode;
+  controlStrip.dataset.mode = mode;
+  modeTitle.textContent = mode === "single" ? "Dot coverage" : "CMYK screens";
+  singleMeter.hidden = mode !== "single";
+  singleControls.hidden = mode !== "single";
+  cmykControls.hidden = mode !== "cmyk";
+
+  modeButtons.forEach((button) => {
+    const isActive = button.dataset.mode === mode;
+
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+
+  drawVisualizer();
+}
+
+function resizeCanvas() {
+  const bounds = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(bounds.width * ratio);
+  canvas.height = Math.round(bounds.height * ratio);
+  drawVisualizer();
+}
+
+function drawPaper(width, height) {
+  ctx.fillStyle = "#fffaf0";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.globalAlpha = 0.26;
+  ctx.fillStyle = "#cabda8";
+
+  for (let y = 18; y < height; y += 36) {
+    ctx.fillRect(0, y, width, 1);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function smoothstep(start, end, current) {
+  const progress = Math.min(Math.max((current - start) / (end - start), 0), 1);
+
+  return progress * progress * (3 - 2 * progress);
+}
+
+function getDotRadius(cell, amount) {
+  const areaRadius = Math.sqrt(amount / 100) * cell * 0.48;
+  const mergeAmount = smoothstep(72, 99, amount);
+  const nearlySolidRadius = cell * 0.69;
+
+  return areaRadius + (nearlySolidRadius - areaRadius) * mergeAmount;
+}
+
+function blendChannel(start, end, amount) {
+  return Math.round(start + (end - start) * amount);
+}
+
+function toLinearRgb(value) {
+  const channel = value / 255;
+
+  if (channel <= 0.04045) {
+    return channel / 12.92;
+  }
+
+  return ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function toSrgbValue(value) {
+  const channel =
+    value <= 0.0031308
+      ? value * 12.92
+      : 1.055 * value ** (1 / 2.4) - 0.055;
+
+  return Math.round(Math.min(Math.max(channel, 0), 1) * 255);
+}
+
+function getPaperRelativeRgb(rgb) {
+  return rgb.map((channel, index) =>
+    Math.round((channel / 255) * paperRgb[index]),
+  );
+}
+
+function getSingleToneColor() {
+  const amount = singleCoverage / 100;
+  const red = blendChannel(255, 16, amount);
+  const green = blendChannel(250, 16, amount);
+  const blue = blendChannel(240, 16, amount);
+
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function getScreenCoverages() {
+  return inkScreens.map((screen) => Number(screen.slider.value) / 100);
+}
+
+function getProfiledCmykToneColor() {
+  const coverages = getScreenCoverages();
+  const linearRgb = [0, 0, 0];
+
+  gracolNeugebauerRgb.forEach((rgb, mask) => {
+    const weight = coverages.reduce((area, coverage, index) => {
+      return area * ((mask & (1 << index)) === 0 ? 1 - coverage : coverage);
+    }, 1);
+    const paperRelativeRgb = getPaperRelativeRgb(rgb);
+
+    linearRgb[0] += toLinearRgb(paperRelativeRgb[0]) * weight;
+    linearRgb[1] += toLinearRgb(paperRelativeRgb[1]) * weight;
+    linearRgb[2] += toLinearRgb(paperRelativeRgb[2]) * weight;
+  });
+
+  return `rgb(${toSrgbValue(linearRgb[0])}, ${toSrgbValue(
+    linearRgb[1],
+  )}, ${toSrgbValue(linearRgb[2])})`;
+}
+
+function drawDivider(splitX, height) {
+  ctx.fillStyle = "rgba(16, 16, 16, 0.18)";
+  ctx.fillRect(splitX - 0.5, 0, 1, height);
+}
+
+function drawInkScreen(screen, clip, width, height, cell) {
+  const amount = Number(screen.slider?.value ?? screen.amount);
+
+  if (amount <= 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(clip.x, clip.y, clip.width, clip.height);
+  ctx.clip();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = screen.color;
+
+  if (amount >= 100) {
+    ctx.fillRect(clip.x, clip.y, clip.width, clip.height);
+    ctx.restore();
+    return;
+  }
+
+  const radius = getDotRadius(cell, amount);
+
+  if (radius <= 0.08) {
+    ctx.restore();
+    return;
+  }
+
+  const margin = Math.hypot(width, height);
+
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate((screen.angle * Math.PI) / 180);
+  ctx.translate(-width / 2, -height / 2);
+
+  for (let y = -margin; y < height + margin; y += cell) {
+    for (let x = -margin; x < width + margin; x += cell) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawCmykTone(splitX, width, height) {
+  ctx.fillStyle = getProfiledCmykToneColor();
+  ctx.fillRect(splitX, 0, width - splitX, height);
+}
+
+function drawSingleView(width, height, cell, splitX) {
+  ctx.fillStyle = getSingleToneColor();
+  ctx.fillRect(splitX, 0, width - splitX, height);
+
+  if (singleCoverage >= 100) {
+    ctx.fillStyle = "#101010";
+    ctx.fillRect(0, 0, width, height);
+    return;
+  }
+
+  drawInkScreen(
+    { amount: singleCoverage, angle: -16, color: "#101010" },
+    { height, width: splitX, x: 0, y: 0 },
+    width,
+    height,
+    cell,
+  );
+  drawDivider(splitX, height);
+}
+
+function drawCmykView(width, height, cell, splitX) {
+  drawCmykTone(splitX, width, height);
+
+  inkScreens.forEach((screen) => {
+    drawInkScreen(
+      screen,
+      { height, width: splitX, x: 0, y: 0 },
+      width,
+      height,
+      cell,
+    );
+  });
+
+  drawDivider(splitX, height);
+}
+
+function drawVisualizer() {
+  const ratio = window.devicePixelRatio || 1;
+  const width = canvas.width / ratio;
+  const height = canvas.height / ratio;
+  const shorterSide = Math.min(width, height);
+  const cell = Math.max(15, Math.min(30, shorterSide / 18));
+  const splitX = width / 2;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+
+  drawPaper(width, height);
+
+  if (mode === "single") {
+    drawSingleView(width, height, cell, splitX);
+  } else {
+    drawCmykView(width, height, cell, splitX);
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+}
+
+modeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setMode(button.dataset.mode);
+  });
+});
+
+singleSlider.addEventListener("input", () => {
+  syncSingleControl();
+
+  if (mode === "single") {
+    drawVisualizer();
+  }
+});
+
+inkScreens.forEach((screen) => {
+  screen.slider.addEventListener("input", () => {
+    syncCmykControls();
+
+    if (mode === "cmyk") {
+      drawVisualizer();
+    }
+  });
+});
+
+window.addEventListener("resize", resizeCanvas);
+
+syncSingleControl();
+syncCmykControls();
+setMode("single");
+resizeCanvas();

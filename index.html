@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halftone Dot Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="visualizer" aria-label="Halftone dot preview">
+        <canvas id="halftoneCanvas"></canvas>
+      </section>
+
+      <section
+        class="control-strip"
+        id="controlStrip"
+        data-mode="single"
+        aria-label="Halftone controls"
+      >
+        <div class="title-group">
+          <p class="eyebrow">Printed halftone</p>
+          <h1 id="modeTitle">Dot coverage</h1>
+
+          <div class="mode-toggle" role="group" aria-label="Color mode">
+            <button
+              class="mode-button is-active"
+              type="button"
+              data-mode="single"
+              aria-pressed="true"
+            >
+              K
+            </button>
+            <button
+              class="mode-button"
+              type="button"
+              data-mode="cmyk"
+              aria-pressed="false"
+            >
+              CMYK
+            </button>
+          </div>
+        </div>
+
+        <div class="meter" id="singleMeter" aria-live="polite">
+          <span id="coverageValue">50</span><span>%</span>
+        </div>
+
+        <div class="controls-panel">
+          <div class="single-controls" id="singleControls">
+            <label class="slider-control" for="coverageSlider">
+              <span>Ink</span>
+              <input
+                id="coverageSlider"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                step="1"
+              />
+            </label>
+          </div>
+
+          <div class="cmyk-controls" id="cmykControls" hidden>
+            <label class="channel-control channel-cyan" for="cyanSlider">
+              <span>C</span>
+              <output id="cyanValue" for="cyanSlider">50%</output>
+              <input
+                id="cyanSlider"
+                data-channel="c"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                step="1"
+              />
+            </label>
+
+            <label class="channel-control channel-magenta" for="magentaSlider">
+              <span>M</span>
+              <output id="magentaValue" for="magentaSlider">50%</output>
+              <input
+                id="magentaSlider"
+                data-channel="m"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                step="1"
+              />
+            </label>
+
+            <label class="channel-control channel-yellow" for="yellowSlider">
+              <span>Y</span>
+              <output id="yellowValue" for="yellowSlider">50%</output>
+              <input
+                id="yellowSlider"
+                data-channel="y"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                step="1"
+              />
+            </label>
+
+            <label class="channel-control channel-black" for="blackSlider">
+              <span>K</span>
+              <output id="blackValue" for="blackSlider">50%</output>
+              <input
+                id="blackSlider"
+                data-channel="k"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                step="1"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
