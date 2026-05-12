@@ -51,24 +51,28 @@ const gracolCoatedTviAt50 = {
 const inkScreens = [
   {
     angle: 15,
+    channel: "c",
     color: "rgb(0, 162, 227)",
     output: document.querySelector("#cyanValue"),
     slider: document.querySelector("#cyanSlider"),
   },
   {
     angle: 75,
+    channel: "m",
     color: "rgb(230, 0, 125)",
     output: document.querySelector("#magentaValue"),
     slider: document.querySelector("#magentaSlider"),
   },
   {
     angle: 0,
+    channel: "y",
     color: "rgb(255, 237, 0)",
     output: document.querySelector("#yellowValue"),
     slider: document.querySelector("#yellowSlider"),
   },
   {
     angle: 45,
+    channel: "k",
     color: "rgb(28, 28, 26)",
     output: document.querySelector("#blackValue"),
     slider: document.querySelector("#blackSlider"),
@@ -192,7 +196,23 @@ function bloomDecay(c, minDotFrac) {
   return Math.max(0, Math.min(1, 1 - t));
 }
 
-function pressEffectiveCoverage(cFrac, params) {
+// Per-channel scale factor for the press-model spread term, derived from
+// GRACoL coated TVI ratios. At default Dot Gain = 18% (= K's GRACoL TVI),
+// each channel's effective gain matches its GRACoL value, so the press
+// half matches the reference half. As the user dials Dot Gain up, all
+// channels scale proportionally — modelling the reality that processes
+// with more midtone K gain also have proportionally more C/M/Y gain.
+function pressChannelScale(channel) {
+  const channelTvi = gracolCoatedTviAt50[channel];
+
+  if (channelTvi === undefined || gracolCoatedTviAt50.k === 0) {
+    return 1;
+  }
+
+  return channelTvi / gracolCoatedTviAt50.k;
+}
+
+function pressEffectiveCoverage(cFrac, params, channelScale) {
   if (cFrac <= 0) {
     return 0;
   }
@@ -205,16 +225,21 @@ function pressEffectiveCoverage(cFrac, params) {
     return 1;
   }
 
+  const scale = channelScale ?? 1;
   const bloomAmplitude = Math.max(0, params.minDotPrinted - params.minDot);
   const bloomTerm = bloomAmplitude * bloomDecay(cFrac, params.minDot);
-  const spreadTerm = params.dotGain * bell(cFrac);
+  const spreadTerm = params.dotGain * scale * bell(cFrac);
 
   return Math.min(1, cFrac + bloomTerm + spreadTerm);
 }
 
-function pressEffectiveAmount(rawAmount) {
+function pressEffectiveAmount(rawAmount, channelScale) {
   const cFrac = rawAmount / 100;
-  const effective = pressEffectiveCoverage(cFrac, getDotGainParams());
+  const effective = pressEffectiveCoverage(
+    cFrac,
+    getDotGainParams(),
+    channelScale,
+  );
 
   return effective * 100;
 }
@@ -327,7 +352,7 @@ function getPressCmykToneColor() {
   const coverages = inkScreens.map((screen) => {
     const raw = Number(screen.slider.value) / 100;
 
-    return pressEffectiveCoverage(raw, params);
+    return pressEffectiveCoverage(raw, params, pressChannelScale(screen.channel));
   });
 
   return neugebauerToneColor(coverages);
@@ -363,7 +388,7 @@ function drawHighLpiSmoothing(toneColor, splitX, height, cell) {
 // main canvas with `multiply`, so cross-ink overlaps still darken correctly.
 function renderInkScreen(screen, clip, width, height, cell) {
   const rawAmount = Number(screen.slider?.value ?? screen.amount);
-  const amount = pressEffectiveAmount(rawAmount);
+  const amount = pressEffectiveAmount(rawAmount, pressChannelScale(screen.channel));
 
   if (amount <= 0) {
     return null;
@@ -443,7 +468,7 @@ function drawSingleView(width, height, cell, splitX) {
   }
 
   drawInkScreen(
-    { amount: singleCoverage, angle: 45, color: "#101010" },
+    { amount: singleCoverage, angle: 45, channel: "k", color: "#101010" },
     { height, width: splitX, x: 0, y: 0 },
     width,
     height,
