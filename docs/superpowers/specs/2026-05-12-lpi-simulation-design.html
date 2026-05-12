@@ -146,16 +146,35 @@
         flex-direction: column;
         gap: 0;
       }
-      .mock-canvas {
+      .mock-canvas-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         height: 160px;
         border: 1px solid var(--line);
         border-radius: 6px;
+        overflow: hidden;
+      }
+      .mock-canvas-half {
+        position: relative;
+      }
+      .mock-canvas-dots {
         background:
           radial-gradient(circle at 30% 40%, rgba(16,16,16,0.85) 0, rgba(16,16,16,0.85) 3px, transparent 4px),
           radial-gradient(circle at 60% 70%, rgba(16,16,16,0.85) 0, rgba(16,16,16,0.85) 3px, transparent 4px),
           radial-gradient(circle at 80% 30%, rgba(16,16,16,0.85) 0, rgba(16,16,16,0.85) 3px, transparent 4px),
           var(--panel);
         background-size: 16px 16px;
+      }
+      .mock-canvas-solid {
+        background: #6b6b6b;
+        border-left: 1px solid rgba(16, 16, 16, 0.2);
+      }
+      .mock-lpi-row-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .mock-lpi-right {
+        /* intentionally empty — the LPI control belongs to the left side */
       }
       .mock-lpi-row {
         display: flex;
@@ -272,23 +291,33 @@
       <section>
         <h2>User-facing control</h2>
         <p>
-          A single horizontal slider, centered, in its own row sitting
-          between the visualizer (canvas) and the existing control strip.
-          Label "LPI" on the left, the slider in the middle, and the
-          current LPI value on the right.
+          A single horizontal slider, in its own row sitting between the
+          visualizer (canvas) and the existing control strip. The slider is
+          centered <em>under the left half of the canvas</em> — the
+          halftone-dot panel — not centered across the whole canvas. The
+          right half of the canvas is the GRACoL coated reference, which
+          doesn't have a screen frequency; the LPI control belongs visually
+          to the side it affects. Label "LPI" on the left of the slider,
+          slider in the middle, and the current LPI value on the right.
         </p>
 
         <div class="mockup-frame">
           <div class="mockup-caption">Mockup — new LPI row between canvas and control strip</div>
           <div class="mockup-body">
-            <div class="mock-canvas" role="presentation"></div>
-            <div class="mock-lpi-row">
-              <span class="label">LPI</span>
-              <span class="track">
-                <span class="fill"></span>
-                <span class="thumb"></span>
-              </span>
-              <span class="value">25</span>
+            <div class="mock-canvas-split">
+              <div class="mock-canvas-half mock-canvas-dots" role="presentation"></div>
+              <div class="mock-canvas-half mock-canvas-solid" role="presentation"></div>
+            </div>
+            <div class="mock-lpi-row-split">
+              <div class="mock-lpi-row">
+                <span class="label">LPI</span>
+                <span class="track">
+                  <span class="fill"></span>
+                  <span class="thumb"></span>
+                </span>
+                <span class="value">25</span>
+              </div>
+              <div class="mock-lpi-right"></div>
             </div>
             <div class="mock-strip">
               <div class="stub" title="title-group / mode toggle"></div>
@@ -404,10 +433,28 @@
   grid-template-rows: minmax(0, 1fr) auto auto;   /* canvas, LPI row, control strip */
 }</code></pre>
         <p>
-          The LPI row is <code>auto</code>-height (a single slider line). It
-          uses a flex layout to center the label / slider / value group
-          horizontally, with a sensible max-width so the slider doesn't
-          stretch full-canvas at large viewport widths.
+          The LPI row itself is a 2-column grid that mirrors the canvas's
+          50/50 split. The LPI slider lives in the LEFT column (under the
+          halftone-dot panel); the right column is intentionally empty (the
+          GRACoL reference doesn't have a screen frequency):
+        </p>
+<pre><code>.lpi-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 10px clamp(16px, 3vw, 34px);
+}
+
+.lpi-row-control {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  /* label "LPI", slider track, numeric value */
+}</code></pre>
+        <p>
+          Mirroring the visualizer's split keeps the spatial association
+          obvious: the slider is visually attached to the halftone side it
+          controls.
         </p>
       </section>
 
