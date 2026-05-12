@@ -368,6 +368,45 @@ input[type="range"]:focus-visible {
   font-size: 0.86rem;
 }
 
+.dot-gain-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.dot-gain-apply {
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--panel);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 8px 18px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(16, 16, 16, 0.16);
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.dot-gain-apply:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.dot-gain-apply:focus-visible {
+  outline: 3px solid rgba(31, 111, 139, 0.32);
+  outline-offset: 3px;
+}
+
+.dot-gain-apply:disabled {
+  background: var(--paper-deep);
+  color: #51493d;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.65;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     min-height: 600px;

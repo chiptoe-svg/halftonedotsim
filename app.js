@@ -11,6 +11,7 @@ const ctx = canvas.getContext("2d");
 const dotGainInput = document.querySelector("#dotGainInput");
 const minDotInput = document.querySelector("#minDotInput");
 const minDotPrintedInput = document.querySelector("#minDotPrintedInput");
+const dotGainApplyButton = document.querySelector("#dotGainApplyButton");
 const paperRgb = [255, 250, 240];
 // GRACoL2013 CRPC6 CMYK-to-sRGB samples for paper, primaries, and overprints.
 const gracolNeugebauerRgb = [
@@ -73,12 +74,41 @@ const inkScreens = [
 let mode = "single";
 let singleCoverage = Number(singleSlider.value);
 
-function getDotGainParams() {
+function readDotGainInputs() {
   return {
     dotGain: Math.max(0, Number(dotGainInput.value) / 100) || 0,
     minDot: Math.max(0, Number(minDotInput.value) / 100) || 0,
     minDotPrinted: Math.max(0, Number(minDotPrintedInput.value) / 100) || 0,
   };
+}
+
+// Snapshot of last-applied dot-gain values. The renderer reads from this, not
+// from the live inputs, so typing into the inputs doesn't move the visualizer
+// until the user clicks Apply.
+let appliedDotGainParams = readDotGainInputs();
+
+function getDotGainParams() {
+  return appliedDotGainParams;
+}
+
+function dotGainInputsMatchApplied() {
+  const live = readDotGainInputs();
+
+  return (
+    live.dotGain === appliedDotGainParams.dotGain &&
+    live.minDot === appliedDotGainParams.minDot &&
+    live.minDotPrinted === appliedDotGainParams.minDotPrinted
+  );
+}
+
+function syncDotGainApplyButton() {
+  dotGainApplyButton.disabled = dotGainInputsMatchApplied();
+}
+
+function applyDotGainSettings() {
+  appliedDotGainParams = readDotGainInputs();
+  syncDotGainApplyButton();
+  drawVisualizer();
 }
 
 function syncSingleControl() {
@@ -435,10 +465,10 @@ inkScreens.forEach((screen) => {
 });
 
 [dotGainInput, minDotInput, minDotPrintedInput].forEach((input) => {
-  input.addEventListener("input", () => {
-    drawVisualizer();
-  });
+  input.addEventListener("input", syncDotGainApplyButton);
 });
+
+dotGainApplyButton.addEventListener("click", applyDotGainSettings);
 
 window.addEventListener("resize", resizeCanvas);
 
