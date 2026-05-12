@@ -7,6 +7,8 @@ Two modes:
 - **K** — single-channel black, one slider for dot coverage (0–100%).
 - **CMYK** — four channels with independent coverage sliders, each rendered at its traditional screen angle and blended with a printing-industry color profile.
 
+A **Dot Gain** disclosure in the control strip exposes three press-physics knobs (Dot Gain, Min Dot, Min Dot Printed). The left side reflects what files actually print like on your press; the right side stays a constant GRACoL coated soft-proof reference matching what designers see in Adobe.
+
 ## Live demo
 
 <https://chiptoe-svg.github.io/halftonedotsim/>
@@ -29,6 +31,7 @@ A few things worth pointing out if you read the source:
 - **Dot-area model.** Dot radius is computed from coverage as `√(coverage) · cell · 0.48`, which keeps the painted area roughly linear with the slider value. Near 100% the radius smoothly merges toward `cell · 0.69` so neighboring dots overlap into a solid before snapping to a fully filled fill at 100%.
 - **CMYK color blending.** The solid-tone side uses the **Neugebauer equations** over a 16-point Neugebauer primary set sampled from the **GRACoL2013 CRPC6** characterization (paper, four primaries, six two-color overprints, four three-color overprints, and 4-color black). Each primary is weighted by the product of coverage / (1 − coverage) per channel, scaled against the simulated paper white, blended in linear light, then converted back to sRGB.
 - **Rendering, with accurate high-coverage dots.** Each ink screen renders to its own offscreen canvas using normal source-over compositing — overlapping dots of the _same_ ink merge flat into one ink film rather than darkening each other. The four offscreen layers are then composited onto the main canvas with `globalCompositeOperation = "multiply"`, so overprinted _different_ inks (cyan over magenta, etc.) still darken realistically. This separation matters most above ~70% single-channel coverage, where adjacent dots heavily overlap: a naïve single-pass multiply renderer would produce a visible darker lattice between same-ink dots that doesn't correspond to anything in real printing.
+- **Press-physics gain model.** The Dot Gain disclosure runs each channel's slider value through a hard min-dot floor and a two-component additive gain (`bell`-shape midtone spread + `decay`-shape small-end bloom) anchored by the three user inputs. The right-side reference independently applies hardcoded G7/GRACoL coated TVI per channel (C+12, M+14, Y+13, K+18 at 50%) before the Neugebauer mix, so it always represents the Adobe soft-proof equivalent.
 
 ## File layout
 
