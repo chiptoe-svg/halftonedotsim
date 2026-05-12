@@ -9,7 +9,7 @@ Two modes:
 
 ## Try it live
 
-A live build of this work (from a fork) is hosted at <https://chiptoe-svg.github.io/halftonedotsim/> — open it in any modern browser to play with the visualizer without cloning.
+A live build is hosted at <https://rcongdo.github.io/halftonedotsim/> — open it in any modern browser to play with the visualizer without cloning.
 
 ## Run locally
 
@@ -40,4 +40,4 @@ A few things worth pointing out if you read the source:
 
 ## Deploying
 
-This is a static site with no build step, so it deploys cleanly to any static host (GitHub Pages, Netlify, Cloudflare Pages, S3 + CloudFront, etc.). For GitHub Pages: in Settings → Pages, set _Source: Deploy from a branch_ and pick `main` / `/ (root)`. Once enabled, every push to `main` triggers a Pages rebuild and the live site updates within a minute or two — no GitHub Actions workflow needed.
+This is a static site with no build step, so it deploys cleanly to any static host (GitHub Pages, Netlify, Cloudflare Pages, S3 + CloudFront, etc.). The current live build is served from the `gh-pages` branch at <https://rcongdo.github.io/halftonedotsim/>.
