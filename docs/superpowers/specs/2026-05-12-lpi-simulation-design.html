@@ -388,6 +388,82 @@
           as the rosette flower pattern; at LPI 200+ the cells are pixel-
           scale and the dots merge optically.
         </p>
+      </section>
+
+      <section>
+        <h2>Expected visual progression &amp; acceptance criteria</h2>
+        <p>
+          As the user drags the LPI slider from 25 up to 200, the halftone
+          (left) side should pass smoothly through four distinct visual
+          phases. These phases are the educational payoff of the feature —
+          the implementation has to actually deliver them, not just shrink
+          dots numerically.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 18%">LPI range</th>
+              <th style="width: 24%">Phase name</th>
+              <th>What the user should see</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>~25 – 50</td>
+              <td><strong>Discrete dots</strong></td>
+              <td>Individual dots clearly visible; screen angles obvious; the structure of each ink's rotated grid is legible per channel.</td>
+            </tr>
+            <tr>
+              <td>~50 – 130</td>
+              <td><strong>Rosette pattern</strong></td>
+              <td>The four rotated grids interfere into the classic CMYK rosette / flower texture. Recognizably "printed" but not solid tone.</td>
+            </tr>
+            <tr>
+              <td>~130 – 175</td>
+              <td><strong>Noisy texture</strong></td>
+              <td>Rosettes break down — dots are too small to read as discrete features, the pattern reads as fine grain or noise. Still visibly textured if you look closely.</td>
+            </tr>
+            <tr>
+              <td>~175 – 200</td>
+              <td><strong>Smooth tone</strong></td>
+              <td>The left half is indistinguishable from the GRACoL coated reference panel on the right at viewing distance (with default Dot Gain 18% / Min Dot 1% / Min Dot Printed 3%).</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <strong>Key acceptance criterion.</strong> At <strong>LPI 200</strong>
+          with default dot-gain settings, the left (halftone) half of the
+          canvas should be visually indistinguishable from the right
+          (GRACoL reference) half at normal screen viewing distance. This
+          is the most concrete test of "did we model the full LPI range
+          correctly" — if the high end still looks like discrete dots, the
+          formula or rendering needs tuning.
+        </div>
+
+        <h3>Why this likely requires iteration</h3>
+        <p>
+          The simple <code>cell = max(4, 750 / lpi)</code> formula gets us
+          close, but probably not all the way to "indistinguishable from
+          solid" at LPI 200 on typical screens. At <code>cell = 4 px</code>
+          with a typical viewport, individual dots are still pixel-resolvable
+          on a sharp display at normal distance. Levers we can pull during
+          implementation:
+        </p>
+        <ul>
+          <li><strong>Lower the pixel floor</strong> (e.g., <code>max(2, …)</code>) and let antialiased sub-pixel dots produce a fine grain that visually averages to solid.</li>
+          <li><strong>Re-tune the formula constant</strong> so LPI 200 maps to a cell size that's empirically below the eye's resolving power at normal distance (likely needs the floor lowered too).</li>
+          <li><strong>Add a small post-blur</strong> applied to the halftone offscreen when cell drops below a threshold (e.g., 1–1.5 px Gaussian when cell &lt; 5). This simulates the eye's averaging at viewing distance and is the most reliable way to hit the "indistinguishable" criterion without abandoning the geometric dot model.</li>
+        </ul>
+        <p>
+          The implementation plan should treat the formula constant, the
+          pixel floor, and the optional post-blur as <strong>tunable
+          parameters</strong> with explicit visual checkpoints at LPI 25,
+          85, 130, 175, 200 — not "ship the formula and hope". Expect a
+          few rounds of "drag the slider, screenshot, compare against the
+          reference panel, adjust" during implementation.
+        </p>
 
         <h3>Pixel-floor at <code>cell = 4 px</code></h3>
         <p>
@@ -479,11 +555,12 @@
       </section>
 
       <section>
-        <h2>Open questions / future work</h2>
+        <h2>Open questions / iteration areas</h2>
         <ul>
+          <li><strong>Smooth-tone tuning at high LPI</strong> (most likely to need iteration). The cell-size formula, pixel floor, and optional post-blur all interact to determine whether LPI 200 actually hits the "indistinguishable from solid" criterion. Plan to iterate during implementation: drag, screenshot, compare against the right panel at default gain, adjust. See "Expected visual progression" above for the four phases the slider needs to pass through.</li>
+          <li><strong>Interaction with the existing smoothstep merge.</strong> The near-solid radius merge in <code>getDotRadius</code> uses cell-relative offsets (currently <code>cell · 0.69</code>) that should scale naturally with smaller cells — but visual review at very small cells will tell us if it needs adjustment.</li>
           <li><strong>Performance at LPI 200 with CMYK slider drags.</strong> Per-channel offscreen canvases each draw thousands of small dots. Modern hardware should handle this, but if drag becomes choppy we may want to debounce or throttle redraws at the high end of the LPI range.</li>
-          <li><strong>Interaction with the existing smoothstep merge.</strong> The near-solid radius merge in <code>getDotRadius</code> uses absolute pixel offsets that may look different at very small cell sizes. Visual review during implementation will tell us if it needs adjustment.</li>
-          <li><strong>Slider label affordance.</strong> Should the value display include "LPI" as a suffix (e.g., "100 LPI") instead of relying on the static "LPI" label on the left? Decision is small and can be tuned during implementation.</li>
+          <li><strong>Slider label affordance.</strong> Should the value display include "LPI" as a suffix (e.g., "100 LPI") instead of relying on the static "LPI" label on the left? Small decision; tune during implementation.</li>
         </ul>
       </section>
 
