@@ -435,7 +435,7 @@ inkScreens.forEach((screen) => {
 });
 
 [dotGainInput, minDotInput, minDotPrintedInput].forEach((input) => {
-  input.addEventListener("change", () => {
+  input.addEventListener("input", () => {
     drawVisualizer();
   });
 });
