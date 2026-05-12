@@ -444,6 +444,13 @@ function acquireOffscreen(channel, deviceWidth, deviceHeight) {
 // (high-coverage) regimes correctly.
 const patternCache = new Map();
 
+// Pattern supersample factor. The tile is rendered at `PATTERN_SUPERSAMPLE`
+// times the device-pixel cell size, then scaled back down at fill time via
+// pattern.setTransform. Bilinear sampling through the rotation now has 4x
+// more source pixels per output pixel, keeping rotated dot edges crisp at
+// low LPI where individual dots are clearly visible.
+const PATTERN_SUPERSAMPLE = 2;
+
 function getDotPattern(color, cell, radius, ratio) {
   const cacheKey = `${color}|${cell.toFixed(3)}|${radius.toFixed(3)}|${ratio}`;
   const cached = patternCache.get(cacheKey);
@@ -453,11 +460,12 @@ function getDotPattern(color, cell, radius, ratio) {
   }
 
   const deviceCell = Math.max(2, Math.round(cell * ratio));
-  const deviceRadius = Math.max(0.5, radius * ratio);
+  const tileCell = deviceCell * PATTERN_SUPERSAMPLE;
+  const tileRadius = Math.max(0.5, radius * ratio * PATTERN_SUPERSAMPLE);
   const pCanvas = document.createElement("canvas");
 
-  pCanvas.width = deviceCell;
-  pCanvas.height = deviceCell;
+  pCanvas.width = tileCell;
+  pCanvas.height = tileCell;
 
   const pCtx = pCanvas.getContext("2d");
 
@@ -466,27 +474,27 @@ function getDotPattern(color, cell, radius, ratio) {
 
   // Center dot — one per tile produces the canonical square dot grid when
   // the tile repeats.
-  pCtx.moveTo(deviceCell / 2 + deviceRadius, deviceCell / 2);
-  pCtx.arc(deviceCell / 2, deviceCell / 2, deviceRadius, 0, Math.PI * 2);
+  pCtx.moveTo(tileCell / 2 + tileRadius, tileCell / 2);
+  pCtx.arc(tileCell / 2, tileCell / 2, tileRadius, 0, Math.PI * 2);
 
   // Only when dots are large enough to overlap their tile boundaries do we
   // also need corner/edge dots: those quarter-circles stitch across tile
   // edges with their neighbors' to form continuous boundary ink.
-  if (deviceRadius > deviceCell / 2) {
+  if (tileRadius > tileCell / 2) {
     const edges = [
       [0, 0],
-      [deviceCell, 0],
-      [0, deviceCell],
-      [deviceCell, deviceCell],
-      [deviceCell / 2, 0],
-      [deviceCell / 2, deviceCell],
-      [0, deviceCell / 2],
-      [deviceCell, deviceCell / 2],
+      [tileCell, 0],
+      [0, tileCell],
+      [tileCell, tileCell],
+      [tileCell / 2, 0],
+      [tileCell / 2, tileCell],
+      [0, tileCell / 2],
+      [tileCell, tileCell / 2],
     ];
 
     for (const [cx, cy] of edges) {
-      pCtx.moveTo(cx + deviceRadius, cy);
-      pCtx.arc(cx, cy, deviceRadius, 0, Math.PI * 2);
+      pCtx.moveTo(cx + tileRadius, cy);
+      pCtx.arc(cx, cy, tileRadius, 0, Math.PI * 2);
     }
   }
 
@@ -550,9 +558,16 @@ function renderInkScreen(screen, clip, width, height, cell) {
   const patternCanvas = getDotPattern(screen.color, cell, radius, ratio);
   const pattern = offCtx.createPattern(patternCanvas, "repeat");
 
-  // Keep high-quality sampling so rotated pattern edges stay smooth rather
-  // than aliased. The post-blur stage below handles any remaining softness
-  // at high LPI.
+  // Scale the supersampled tile back down to the cell pitch. The pattern
+  // source is `PATTERN_SUPERSAMPLE × deviceCell` pixels; rendering at
+  // 1/PATTERN_SUPERSAMPLE puts the tile pitch exactly at `cell` CSS pixels,
+  // with crisper edges than rendering at the source size.
+  if (pattern.setTransform) {
+    pattern.setTransform(
+      new DOMMatrix().scaleSelf(1 / PATTERN_SUPERSAMPLE),
+    );
+  }
+
   offCtx.imageSmoothingEnabled = true;
   offCtx.imageSmoothingQuality = "high";
   offCtx.fillStyle = pattern;
