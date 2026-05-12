@@ -466,6 +466,7 @@ inkScreens.forEach((screen) => {
 
 [dotGainInput, minDotInput, minDotPrintedInput].forEach((input) => {
   input.addEventListener("input", syncDotGainApplyButton);
+  input.addEventListener("change", syncDotGainApplyButton);
 });
 
 dotGainApplyButton.addEventListener("click", applyDotGainSettings);

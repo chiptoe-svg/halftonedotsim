@@ -322,7 +322,8 @@ input[type="range"]:focus-visible {
 .dot-gain-inputs {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
   gap: 10px clamp(12px, 2vw, 22px);
 }
 
@@ -366,12 +367,6 @@ input[type="range"]:focus-visible {
   color: #51493d;
   font-weight: 700;
   font-size: 0.86rem;
-}
-
-.dot-gain-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
 }
 
 .dot-gain-apply {
