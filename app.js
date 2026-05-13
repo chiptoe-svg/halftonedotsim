@@ -472,30 +472,24 @@ function getDotPattern(color, cell, radius, ratio) {
   pCtx.fillStyle = color;
   pCtx.beginPath();
 
-  // Center dot — one per tile produces the canonical square dot grid when
-  // the tile repeats.
-  pCtx.moveTo(tileCell / 2 + tileRadius, tileCell / 2);
-  pCtx.arc(tileCell / 2, tileCell / 2, tileRadius, 0, Math.PI * 2);
+  // Four corner dots — each corner is shared by 4 tiles, and the four
+  // quarter-circles stitch together when tiled to form one full dot per
+  // grid position with spacing `cell`. This single shape works correctly
+  // for all radius values: separated dots when r < cell/2, partial
+  // overlap when r > cell/2, full coverage as r approaches cell. (The
+  // previous "center + corners when overlapping" approach double-counted
+  // dots above r = cell/2 and rendered as solid ink past ~58% effective
+  // coverage.)
+  const corners = [
+    [0, 0],
+    [tileCell, 0],
+    [0, tileCell],
+    [tileCell, tileCell],
+  ];
 
-  // Only when dots are large enough to overlap their tile boundaries do we
-  // also need corner/edge dots: those quarter-circles stitch across tile
-  // edges with their neighbors' to form continuous boundary ink.
-  if (tileRadius > tileCell / 2) {
-    const edges = [
-      [0, 0],
-      [tileCell, 0],
-      [0, tileCell],
-      [tileCell, tileCell],
-      [tileCell / 2, 0],
-      [tileCell / 2, tileCell],
-      [0, tileCell / 2],
-      [tileCell, tileCell / 2],
-    ];
-
-    for (const [cx, cy] of edges) {
-      pCtx.moveTo(cx + tileRadius, cy);
-      pCtx.arc(cx, cy, tileRadius, 0, Math.PI * 2);
-    }
+  for (const [cx, cy] of corners) {
+    pCtx.moveTo(cx + tileRadius, cy);
+    pCtx.arc(cx, cy, tileRadius, 0, Math.PI * 2);
   }
 
   pCtx.fill();
